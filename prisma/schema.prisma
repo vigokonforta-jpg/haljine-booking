@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model AvailabilitySlot {
+  id        Int       @id @default(autoincrement())
+  date      String    // YYYY-MM-DD
+  startHour Int       // 0-23
+  maxSpots  Int       @default(3)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+
+  @@unique([date, startHour])
+}
+
+model Booking {
+  id                 Int              @id @default(autoincrement())
+  name               String
+  email              String
+  phone              String
+  availabilitySlotId Int
+  availabilitySlot   AvailabilitySlot @relation(fields: [availabilitySlotId], references: [id], onDelete: Cascade)
+  reminderSent       Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+}
+
+model SiteSettings {
+  id           Int      @id @default(1)
+  instructions String   @default("")
+  updatedAt    DateTime @updatedAt
+}
