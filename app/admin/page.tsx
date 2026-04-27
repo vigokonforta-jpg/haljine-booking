@@ -160,9 +160,15 @@ export default function AdminPage() {
   }
 
   async function sendReminders() {
+    // Auth cookie is sent automatically — no secret header needed for the admin panel.
+    // REMINDER_SECRET is only for external cron jobs calling this endpoint.
     const res = await fetch("/api/send-reminders", { method: "POST" });
+    if (!res.ok) {
+      alert("Greška pri slanju podsjetnika. Pokušajte se odjaviti i prijaviti ponovo.");
+      return;
+    }
     const data = await res.json();
-    alert(`Poslano ${data.sent} podsjetnika.`);
+    alert(data.sent > 0 ? `Poslano ${data.sent} podsjetnika.` : "Nema novih podsjetnika za slanje.");
   }
 
   async function saveInstructions(e: React.FormEvent) {
@@ -295,31 +301,54 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--noema-bg)", fontFamily: "var(--font-inter), sans-serif" }}>
       {/* Top bar */}
-      <header className="border-b border-[#E2DDD6] bg-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <span
-            className="text-lg font-light tracking-[0.35em] uppercase text-[#1A1A1A]"
-            style={{ fontFamily: "var(--font-cormorant), serif" }}
+      <header className="border-b border-[#E2DDD6] bg-white">
+        {/* Primary row — always visible */}
+        <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="text-lg font-light tracking-[0.35em] uppercase text-[#1A1A1A]"
+              style={{ fontFamily: "var(--font-cormorant), serif" }}
+            >
+              Noema
+            </span>
+            <span className="text-[9px] tracking-[0.15em] uppercase text-[#C8C0B8]">Admin</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* On desktop show all actions inline */}
+            <a
+              href="/"
+              className="hidden sm:inline text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide whitespace-nowrap"
+            >
+              ← Klijentska stranica
+            </a>
+            <button
+              onClick={sendReminders}
+              className="hidden sm:inline text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors whitespace-nowrap"
+            >
+              Pošalji podsjetnike
+            </button>
+            <button
+              onClick={logout}
+              className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors"
+            >
+              Odjava
+            </button>
+          </div>
+        </div>
+        {/* Secondary row — mobile only */}
+        <div className="sm:hidden border-t border-[#E2DDD6] px-4 py-2 flex items-center gap-4">
+          <a
+            href="/"
+            className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide"
           >
-            Noema
-          </span>
-          <span className="text-[10px] tracking-[0.15em] uppercase text-[#C8C0B8]">Admin</span>
-          <a href="/" className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">
             ← Klijentska stranica
           </a>
-        </div>
-        <div className="flex items-center gap-2">
+          <span className="text-[#E2DDD6] select-none">·</span>
           <button
             onClick={sendReminders}
-            className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors"
+            className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide"
           >
             Pošalji podsjetnike
-          </button>
-          <button
-            onClick={logout}
-            className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors"
-          >
-            Odjava
           </button>
         </div>
       </header>

@@ -12,14 +12,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const now = new Date();
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowDate = tomorrow.toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
 
+  // Find all upcoming bookings that haven't been reminded yet.
+  // Using gte:today so manual triggers from the admin panel catch all upcoming slots,
+  // not just those exactly 24h away.
   const bookings = await prisma.booking.findMany({
     where: {
       reminderSent: false,
-      availabilitySlot: { date: tomorrowDate },
+      availabilitySlot: { date: { gte: today } },
     },
     include: { availabilitySlot: true },
   });
