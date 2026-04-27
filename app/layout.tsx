@@ -15,9 +15,35 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://haljine-booking.vercel.app";
+
 export const metadata: Metadata = {
-  title: "NOEMA — Croatian Fashion Rental Closet",
-  description: "Rezervirajte termin i pronađite savršenu haljinu za posebnu prigodu.",
+  metadataBase: new URL(siteUrl),
+  title: "NOEMA | Rezervacija termina - Croatian Fashion Rental Closet Zagreb",
+  description:
+    "Rezervirajte termin u NOEMA - vodeći rental haljina u Zagrebu. Pronađite savršenu haljinu za posebnu prigodu. Nova Ves 50, Zagreb.",
+  keywords: [
+    "noema haljine",
+    "rental haljina zagreb",
+    "iznajmljivanje haljina zagreb",
+    "noema zagreb",
+    "rezervacija termina",
+  ],
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "NOEMA",
+    locale: "hr_HR",
+    title: "NOEMA | Rezervacija termina - Croatian Fashion Rental Closet Zagreb",
+    description:
+      "Rezervirajte termin u NOEMA - vodeći rental haljina u Zagrebu. Pronađite savršenu haljinu za posebnu prigodu. Nova Ves 50, Zagreb.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NOEMA | Rezervacija termina - Croatian Fashion Rental Closet Zagreb",
+    description:
+      "Rezervirajte termin u NOEMA - vodeći rental haljina u Zagrebu. Pronađite savršenu haljinu za posebnu prigodu.",
+  },
 };
 
 export default function RootLayout({
