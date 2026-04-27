@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { ADMIN_PASSWORD, createSession } from "@/lib/auth";
+import { checkPassword, createSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   const { password } = await request.json();
-  if (password !== ADMIN_PASSWORD) {
+  if (!(await checkPassword(password))) {
     return Response.json({ error: "Invalid password" }, { status: 401 });
   }
   await createSession();

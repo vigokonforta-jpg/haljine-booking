@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { sendReminderEmail } from "@/lib/email";
 import { isAuthenticated } from "@/lib/auth";
+import { runCleanup } from "@/app/api/admin/cleanup/route";
 
 // POST /api/send-reminders
 // Call this daily (e.g. via cron) to send 24h-before reminders
@@ -44,5 +45,8 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ sent });
+  // Run daily cleanup of slots/bookings older than 30 days
+  const cleaned = await runCleanup().catch(() => 0);
+
+  return Response.json({ sent, cleaned });
 }
