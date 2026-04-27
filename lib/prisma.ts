@@ -2,7 +2,9 @@ import { PrismaClient } from "@/app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  // Vercel Postgres sets POSTGRES_URL (pooled); fall back to DATABASE_URL for local dev
+  const connectionString = (process.env.POSTGRES_URL ?? process.env.DATABASE_URL)!;
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter } as never);
 }
 
