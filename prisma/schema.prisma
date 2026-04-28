@@ -23,10 +23,17 @@ model Booking {
   name               String
   email              String
   phone              String
+  people             Int              @default(1)
   availabilitySlotId Int
   availabilitySlot   AvailabilitySlot @relation(fields: [availabilitySlotId], references: [id], onDelete: Cascade)
   reminderSent       Boolean          @default(false)
   createdAt          DateTime         @default(now())
+}
+
+model BookingLimit {
+  id          Int    @id @default(autoincrement())
+  email       String @unique
+  cancelCount Int    @default(0)
 }
 
 model SiteSettings {

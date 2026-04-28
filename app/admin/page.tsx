@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 
 type BookingEntry = {
   id: number; name: string; email: string; phone: string;
-  date: string; startHour: number; createdAt: string;
+  people: number; date: string; startHour: number; createdAt: string;
 };
 type SlotEntry = {
   id: number; date: string; startHour: number; maxSpots: number; booked: number;
@@ -12,6 +12,17 @@ type SlotEntry = {
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 function formatHour(h: number) { return `${pad(h)}:00 – ${pad(h + 1)}:00`; }
+
+const WEEKDAYS_FULL = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
+const MONTHS_GEN = [
+  "siječnja", "veljače", "ožujka", "travnja", "svibnja", "lipnja",
+  "srpnja", "kolovoza", "rujna", "listopada", "studenog", "prosinca",
+];
+function formatCroatianDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const weekday = WEEKDAYS_FULL[new Date(y, m - 1, d).getDay()];
+  return `${weekday}, ${d}. ${MONTHS_GEN[m - 1]} ${y}.`;
+}
 
 const MONTHS = [
   "Siječanj","Veljača","Ožujak","Travanj","Svibanj","Lipanj",
@@ -381,15 +392,16 @@ export default function AdminPage() {
             ) : (
               <div className="bg-white border border-[#E2DDD6] divide-y divide-[#E2DDD6]">
                 {bookings.map(b => (
-                  <div key={b.id} className="flex items-center gap-5 px-5 py-4">
-                    <div className="w-16 shrink-0 text-center border border-[#E2DDD6] py-2">
-                      <p className="text-[10px] tracking-[0.1em] uppercase text-[#A09890]">{b.date}</p>
-                      <p className="text-lg font-light text-[#1A1A1A]" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
+                  <div key={b.id} className="flex items-start gap-5 px-5 py-4">
+                    <div className="shrink-0 text-center border border-[#E2DDD6] py-3 px-4 min-w-[120px]">
+                      <p className="text-xs text-[#6B6560] leading-snug">{formatCroatianDate(b.date)}</p>
+                      <p className="text-2xl font-light text-[#1A1A1A] mt-1" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1A1A1A] truncate">{b.name}</p>
                       <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
                       <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
+                      <p className="text-[10px] tracking-[0.1em] uppercase text-[#C8C0B8] mt-1">{b.people === 2 ? "2 osobe" : "1 osoba"}</p>
                     </div>
                     <button onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-2">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

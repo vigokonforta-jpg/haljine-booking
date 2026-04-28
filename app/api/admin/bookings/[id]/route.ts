@@ -10,6 +10,19 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.booking.delete({ where: { id: Number(id) } });
+  const bookingId = Number(id);
+
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  if (booking) {
+    await prisma.$transaction([
+      prisma.bookingLimit.upsert({
+        where: { email: booking.email },
+        create: { email: booking.email, cancelCount: 1 },
+        update: { cancelCount: { increment: 1 } },
+      }),
+      prisma.booking.delete({ where: { id: bookingId } }),
+    ]);
+  }
+
   return Response.json({ ok: true });
 }

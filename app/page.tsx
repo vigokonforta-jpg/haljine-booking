@@ -140,6 +140,7 @@ export default function BookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [step, setStep] = useState<Step>("calendar");
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [people, setPeople] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
@@ -216,7 +217,7 @@ export default function BookingPage() {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, slotId: selectedSlot.id }),
+        body: JSON.stringify({ ...form, slotId: selectedSlot.id, people }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -238,6 +239,7 @@ export default function BookingPage() {
     setSelectedDate(null);
     setSelectedSlot(null);
     setForm({ name: "", email: "", phone: "" });
+    setPeople(1);
     setEmailSent(false);
     refreshSlots();
   }
@@ -345,7 +347,7 @@ export default function BookingPage() {
                 </div>
 
                 {/* Time */}
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#F0EBE3]">
                   <span
                     className="text-[10px] tracking-[0.18em] uppercase text-[#A09890] mt-0.5"
                     style={{ fontFamily: "var(--font-inter), sans-serif" }}
@@ -357,6 +359,22 @@ export default function BookingPage() {
                     style={{ fontFamily: "var(--font-cormorant), serif" }}
                   >
                     {formatHour(selectedSlot.startHour)}
+                  </span>
+                </div>
+
+                {/* People */}
+                <div className="flex items-start justify-between gap-4">
+                  <span
+                    className="text-[10px] tracking-[0.18em] uppercase text-[#A09890] mt-0.5"
+                    style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                  >
+                    Broj osoba
+                  </span>
+                  <span
+                    className="text-base font-light text-[#1A1A1A] text-right"
+                    style={{ fontFamily: "var(--font-cormorant), serif" }}
+                  >
+                    {people === 2 ? "2 osobe" : "1 osoba"}
                   </span>
                 </div>
               </div>
@@ -465,6 +483,34 @@ export default function BookingPage() {
                   />
                 </div>
               ))}
+
+              {/* People selector */}
+              <div>
+                <label
+                  className="block text-[10px] tracking-[0.2em] uppercase text-[#A09890] mb-2"
+                  style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                >
+                  Broj osoba
+                </label>
+                <div className="flex gap-3">
+                  {([1, 2] as const).map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPeople(n)}
+                      className={[
+                        "flex-1 py-2.5 text-sm border transition-colors",
+                        people === n
+                          ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
+                          : "text-[#6B6560] border-[#E2DDD6] hover:border-[#1A1A1A]",
+                      ].join(" ")}
+                      style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                    >
+                      {n === 1 ? "1 osoba" : "2 osobe"}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {error && (
                 <p className="text-xs text-red-500" style={{ fontFamily: "var(--font-inter), sans-serif" }}>

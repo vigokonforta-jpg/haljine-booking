@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     where: {
       date: { gte: startDate, lt: endDate },
     },
-    include: { _count: { select: { bookings: true } } },
+    include: { bookings: { select: { people: true } } },
     orderBy: [{ date: "asc" }, { startHour: "asc" }],
   });
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     date: slot.date,
     startHour: slot.startHour,
     maxSpots: slot.maxSpots,
-    spotsLeft: slot.maxSpots - slot._count.bookings,
+    spotsLeft: slot.maxSpots - slot.bookings.reduce((sum, b) => sum + b.people, 0),
   }));
 
   return Response.json(result);

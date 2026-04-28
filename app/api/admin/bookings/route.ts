@@ -23,6 +23,7 @@ export async function GET() {
       name: b.name,
       email: b.email,
       phone: b.phone,
+      people: b.people,
       date: b.availabilitySlot.date,
       startHour: b.availabilitySlot.startHour,
       createdAt: b.createdAt,
