@@ -459,9 +459,7 @@ export default function AdminPage() {
           }
           const weekKeys = Object.keys(byWeek).sort();
 
-          function toggleBookingWeek(wk: string) {
-            setExpandedBookingWeeks(prev => { const n = new Set(prev); n.has(wk) ? n.delete(wk) : n.add(wk); return n; });
-          }
+          // Days are expanded by default; expandedDates tracks which are COLLAPSED
           function toggleDate(date: string) {
             setExpandedDates(prev => { const n = new Set(prev); n.has(date) ? n.delete(date) : n.add(date); return n; });
           }
@@ -484,93 +482,81 @@ export default function AdminPage() {
               ) : bookings.length === 0 ? (
                 <div className="bg-white border border-[#E2DDD6] p-12 text-center"><p className="text-sm text-[#C8C0B8]">Nema nadolazećih rezervacija.</p></div>
               ) : (
-                <div className="space-y-3">
-                  {weekKeys.map(wk => {
-                    const wkOpen = expandedBookingWeeks.has(wk);
-                    const wkDates = byWeek[wk];
-                    const totalInWeek = wkDates.reduce((s, d) => s + byDate[d].length, 0);
-                    const wkLabel = totalInWeek === 1 ? "1 rezervacija" : totalInWeek < 5 ? `${totalInWeek} rezervacije` : `${totalInWeek} rezervacija`;
-                    return (
-                      <div key={wk} className="border border-[#E2DDD6] overflow-hidden" style={{ background: "var(--noema-bg)" }}>
-                        {/* Week header */}
-                        <button onClick={() => toggleBookingWeek(wk)}
-                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-[#F5F0EB] transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] tracking-[0.2em] uppercase font-medium text-[#6B6560]">
-                              {formatWeekRange(wk, true)}
-                            </span>
-                            <span className="text-[10px] bg-[#1A1A1A] text-white tracking-wider px-2 py-0.5">
-                              {totalInWeek}
-                            </span>
-                          </div>
-                          <span className="text-[#A09890]">{chevron(wkOpen)}</span>
-                        </button>
-
-                        {/* Days in week */}
-                        {wkOpen && (
-                          <div className="border-t border-[#E2DDD6] divide-y divide-[#E2DDD6]">
-                            {wkDates.map(date => {
-                              const [y, m, d] = date.split("-").map(Number);
-                              const group = byDate[date];
-                              const isOpen = expandedDates.has(date);
-                              const count = group.length;
-                              const countLabel = count === 1 ? "1 rezervacija" : count < 5 ? `${count} rezervacije` : `${count} rezervacija`;
-                              const weekdayName = WEEKDAYS_FULL[new Date(y, m - 1, d).getDay()].toUpperCase();
-                              const dateLabel = `${d}. ${MONTHS_GEN[m - 1]} ${y}.`;
-                              return (
-                                <div key={date} className="bg-white">
-                                  {/* Day header */}
-                                  <button onClick={() => toggleDate(date)}
-                                    className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#FAFAF8] transition-colors">
-                                    <div>
-                                      <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#1A1A1A]"
-                                        style={{ fontFamily: "var(--font-inter), sans-serif" }}>
-                                        {weekdayName}
-                                      </p>
-                                      <p className="text-sm font-light text-[#6B6560] mt-0.5"
-                                        style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                                        {dateLabel}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-[10px] tracking-[0.1em] border border-[#E2DDD6] px-2 py-0.5 text-[#6B6560]">
-                                        {countLabel}
-                                      </span>
-                                      <span className="text-[#A09890]">{chevron(isOpen)}</span>
-                                    </div>
-                                  </button>
-
-                                  {/* Booking rows */}
-                                  {isOpen && (
-                                    <div className="border-t border-[#E2DDD6] divide-y divide-[#E2DDD6]">
-                                      {group.sort((a, b) => a.startHour - b.startHour).map(b => (
-                                        <div key={b.id} className="flex items-center gap-4 px-5 py-3 bg-[#FAFAF8]">
-                                          <div className="shrink-0 w-14 text-center">
-                                            <p className="text-xl font-light text-[#1A1A1A]" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
-                                            <p className="text-[9px] tracking-[0.1em] uppercase text-[#C8C0B8]">{b.people === 2 ? "2 os." : "1 os."}</p>
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-[#1A1A1A] truncate">{b.name}</p>
-                                            <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
-                                            <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
-                                          </div>
-                                          <button type="button" onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-1.5">
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                <div className="space-y-6">
+                  {weekKeys.map(wk => (
+                    <div key={wk}>
+                      {/* Week label — non-interactive divider */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex-1 h-px bg-[#E2DDD6]" />
+                        <span className="text-[10px] tracking-[0.2em] uppercase text-[#A09890] shrink-0">
+                          Tjedan {formatWeekRange(wk, true)}
+                        </span>
+                        <div className="flex-1 h-px bg-[#E2DDD6]" />
                       </div>
-                    );
-                  })}
+
+                      {/* Day rows — expanded by default, collapsible */}
+                      <div className="space-y-2">
+                        {byWeek[wk].map(date => {
+                          const [y, m, d] = date.split("-").map(Number);
+                          const group = byDate[date];
+                          // collapsed if explicitly toggled; open by default
+                          const isCollapsed = expandedDates.has(date);
+                          const count = group.length;
+                          const countLabel = count === 1 ? "1 rezervacija" : count < 5 ? `${count} rezervacije` : `${count} rezervacija`;
+                          const weekdayName = WEEKDAYS_FULL[new Date(y, m - 1, d).getDay()].toUpperCase();
+                          const dateLabel = `${d}. ${MONTHS_GEN[m - 1]} ${y}.`;
+                          return (
+                            <div key={date} className="border border-[#E2DDD6] bg-white overflow-hidden">
+                              {/* Day header */}
+                              <button onClick={() => toggleDate(date)}
+                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#FAFAF8] transition-colors">
+                                <div>
+                                  <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#1A1A1A]"
+                                    style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+                                    {weekdayName}
+                                  </p>
+                                  <p className="text-sm font-light text-[#6B6560] mt-0.5"
+                                    style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                                    {dateLabel}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] tracking-[0.1em] border border-[#E2DDD6] px-2 py-0.5 text-[#6B6560]">
+                                    {countLabel}
+                                  </span>
+                                  {chevron(!isCollapsed)}
+                                </div>
+                              </button>
+
+                              {/* Booking rows — shown unless collapsed */}
+                              {!isCollapsed && (
+                                <div className="border-t border-[#E2DDD6] divide-y divide-[#E2DDD6]">
+                                  {group.sort((a, b) => a.startHour - b.startHour).map(b => (
+                                    <div key={b.id} className="flex items-center gap-4 px-5 py-3 bg-[#FAFAF8]">
+                                      <div className="shrink-0 w-14 text-center">
+                                        <p className="text-xl font-light text-[#1A1A1A]" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
+                                        <p className="text-[9px] tracking-[0.1em] uppercase text-[#C8C0B8]">{b.people === 2 ? "2 os." : "1 os."}</p>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-[#1A1A1A] truncate">{b.name}</p>
+                                        <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
+                                        <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
+                                      </div>
+                                      <button type="button" onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-1.5">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
