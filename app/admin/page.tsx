@@ -48,7 +48,7 @@ export default function AdminPage() {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
-  // Availability — single slot
+  // Availability — single slot (fully independent of bulk)
   const [availSlots, setAvailSlots] = useState<SlotEntry[]>([]);
   const [newDate, setNewDate] = useState("");
   const [newHour, setNewHour] = useState("9");
@@ -56,13 +56,16 @@ export default function AdminPage() {
   const [slotError, setSlotError] = useState("");
   const [slotSuccess, setSlotSuccess] = useState("");
 
-  // Availability — bulk multi-select
+  // Availability — bulk multi-select (independent state from single slot)
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [bulkHourMode, setBulkHourMode] = useState<"specific" | "range">("specific");
   const [bulkHours, setBulkHours] = useState("9,10,11,14,15,16");
   const [bulkRangeStart, setBulkRangeStart] = useState("9");
   const [bulkRangeEnd, setBulkRangeEnd] = useState("17");
+  const [bulkMaxSpots, setBulkMaxSpots] = useState("3");
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkSuccess, setBulkSuccess] = useState("");
 
   // Password change
   const [currentPwd, setCurrentPwd] = useState("");
@@ -148,8 +151,14 @@ export default function AdminPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: newDate, startHour: Number(newHour), maxSpots: Number(newMaxSpots) }),
     });
-    if (res.ok) { setSlotSuccess("Termin dodan."); await fetchSlots(); }
-    else { const d = await res.json(); setSlotError(d.error ?? "Greška"); }
+    if (res.ok) {
+      const [y, m, d] = newDate.split("-").map(Number);
+      setSlotSuccess(`Termin dodan: ${d}.${m}.${y}. u ${pad(Number(newHour))}:00`);
+      await fetchSlots();
+    } else {
+      const data = await res.json();
+      setSlotError(data.error ?? "Greška");
+    }
   }
 
   function toggleSlot(id: number) {
@@ -218,7 +227,7 @@ export default function AdminPage() {
 
   async function applyBulkSchedule(e: React.FormEvent) {
     e.preventDefault();
-    setBulkApplying(true); setSlotError(""); setSlotSuccess("");
+    setBulkApplying(true); setBulkError(""); setBulkSuccess("");
 
     let hours: number[];
     if (bulkHourMode === "range") {
@@ -228,19 +237,19 @@ export default function AdminPage() {
     } else {
       hours = bulkHours.split(",").map(h => parseInt(h.trim())).filter(h => !isNaN(h) && h >= 0 && h <= 23);
     }
-    if (!hours.length) { setSlotError("Unesite valjane sate."); setBulkApplying(false); return; }
+    if (!hours.length) { setBulkError("Unesite valjane sate."); setBulkApplying(false); return; }
 
     let added = 0, skipped = 0;
     for (const date of Array.from(selectedDays).sort()) {
       for (const h of hours) {
         const res = await fetch("/api/admin/availability", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date, startHour: h, maxSpots: Number(newMaxSpots) }),
+          body: JSON.stringify({ date, startHour: h, maxSpots: Number(bulkMaxSpots) }),
         });
         if (res.ok) added++; else skipped++;
       }
     }
-    setSlotSuccess(
+    setBulkSuccess(
       `Dodano ${added} termina za ${selectedDays.size} dana` +
       (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") + "."
     );
@@ -312,7 +321,7 @@ export default function AdminPage() {
         <button
           key={dateStr}
           disabled={isPast}
-          onClick={() => { if (isPast) return; toggleDay(dateStr); setNewDate(dateStr); }}
+          onClick={() => { if (isPast) return; toggleDay(dateStr); }}
           className={[
             "aspect-square flex flex-col items-center justify-center rounded-full text-xs transition-all",
             isPast ? "text-[#D0CAC3] cursor-default" :
@@ -585,11 +594,11 @@ export default function AdminPage() {
 
                     <div>
                       <label className={labelClass}>Maks. mjesta po terminu</label>
-                      <input type="number" min="1" max="20" required value={newMaxSpots} onChange={e => setNewMaxSpots(e.target.value)} className={inputClass} />
+                      <input type="number" min="1" max="20" required value={bulkMaxSpots} onChange={e => setBulkMaxSpots(e.target.value)} className={inputClass} />
                     </div>
 
-                    {slotError   && <p className="text-xs text-red-500">{slotError}</p>}
-                    {slotSuccess && <p className="text-xs text-emerald-600">{slotSuccess}</p>}
+                    {bulkError   && <p className="text-xs text-red-500">{bulkError}</p>}
+                    {bulkSuccess && <p className="text-xs text-emerald-600">{bulkSuccess}</p>}
 
                     <button type="submit" disabled={bulkApplying}
                       className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
