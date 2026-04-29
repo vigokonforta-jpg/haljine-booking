@@ -46,6 +46,7 @@ export default function AdminPage() {
   // Bookings
   const [bookings, setBookings] = useState<BookingEntry[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   // Availability — single slot
   const [availSlots, setAvailSlots] = useState<SlotEntry[]>([]);
@@ -222,7 +223,8 @@ export default function AdminPage() {
     let hours: number[];
     if (bulkHourMode === "range") {
       hours = [];
-      for (let h = Number(bulkRangeStart); h <= Number(bulkRangeEnd); h++) hours.push(h);
+      // end is exclusive: range 9–17 creates slots 9:00–10:00 … 16:00–17:00
+      for (let h = Number(bulkRangeStart); h < Number(bulkRangeEnd); h++) hours.push(h);
     } else {
       hours = bulkHours.split(",").map(h => parseInt(h.trim())).filter(h => !isNaN(h) && h >= 0 && h <= 23);
     }
@@ -403,41 +405,95 @@ export default function AdminPage() {
         </div>
 
         {/* ── Rezervacije ───────────────────────────── */}
-        {tab === "bookings" && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xs tracking-[0.2em] uppercase text-[#6B6560]">Nadolazeće rezervacije</h2>
-              <button onClick={fetchBookings} className="text-xs text-[#A09890] hover:text-[#1A1A1A] transition-colors">↻ Osvježi</button>
-            </div>
-            {bookingsLoading ? (
-              <div className="flex justify-center py-16"><div className="w-5 h-5 border-2 border-[#1A1A1A] border-t-transparent rounded-full animate-spin" /></div>
-            ) : bookings.length === 0 ? (
-              <div className="bg-white border border-[#E2DDD6] p-12 text-center"><p className="text-sm text-[#C8C0B8]">Nema nadolazećih rezervacija.</p></div>
-            ) : (
-              <div className="bg-white border border-[#E2DDD6] divide-y divide-[#E2DDD6]">
-                {bookings.map(b => (
-                  <div key={b.id} className="flex items-start gap-5 px-5 py-4">
-                    <div className="shrink-0 text-center border border-[#E2DDD6] py-3 px-4 min-w-[120px]">
-                      <p className="text-xs text-[#6B6560] leading-snug">{formatCroatianDate(b.date)}</p>
-                      <p className="text-2xl font-light text-[#1A1A1A] mt-1" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1A1A1A] truncate">{b.name}</p>
-                      <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
-                      <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
-                      <p className="text-[10px] tracking-[0.1em] uppercase text-[#C8C0B8] mt-1">{b.people === 2 ? "2 osobe" : "1 osoba"}</p>
-                    </div>
-                    <button onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-2">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+        {tab === "bookings" && (() => {
+          // Group bookings by date, sorted chronologically
+          const byDate: Record<string, BookingEntry[]> = {};
+          for (const b of bookings) {
+            if (!byDate[b.date]) byDate[b.date] = [];
+            byDate[b.date].push(b);
+          }
+          const dateKeys = Object.keys(byDate).sort();
+
+          function toggleDate(date: string) {
+            setExpandedDates(prev => {
+              const next = new Set(prev);
+              if (next.has(date)) next.delete(date); else next.add(date);
+              return next;
+            });
+          }
+
+          return (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xs tracking-[0.2em] uppercase text-[#6B6560]">Nadolazeće rezervacije</h2>
+                <button onClick={fetchBookings} className="text-xs text-[#A09890] hover:text-[#1A1A1A] transition-colors">↻ Osvježi</button>
               </div>
-            )}
-          </div>
-        )}
+              {bookingsLoading ? (
+                <div className="flex justify-center py-16"><div className="w-5 h-5 border-2 border-[#1A1A1A] border-t-transparent rounded-full animate-spin" /></div>
+              ) : bookings.length === 0 ? (
+                <div className="bg-white border border-[#E2DDD6] p-12 text-center"><p className="text-sm text-[#C8C0B8]">Nema nadolazećih rezervacija.</p></div>
+              ) : (
+                <div className="space-y-2">
+                  {dateKeys.map(date => {
+                    const group = byDate[date];
+                    const isOpen = expandedDates.has(date);
+                    const count = group.length;
+                    const label = count === 1 ? "1 rezervacija" : count < 5 ? `${count} rezervacije` : `${count} rezervacija`;
+                    return (
+                      <div key={date} className="border border-[#E2DDD6] bg-white overflow-hidden">
+                        {/* Date header — clickable */}
+                        <button
+                          onClick={() => toggleDate(date)}
+                          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#FAFAF8] transition-colors"
+                        >
+                          <div>
+                            <p className="text-sm font-light text-[#1A1A1A]" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                              {formatCroatianDate(date)}
+                            </p>
+                            <p className="text-[10px] tracking-[0.12em] uppercase text-[#A09890] mt-0.5">{label}</p>
+                          </div>
+                          <svg
+                            className={`w-4 h-4 text-[#A09890] shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        {/* Booking rows */}
+                        {isOpen && (
+                          <div className="border-t border-[#E2DDD6] divide-y divide-[#E2DDD6]">
+                            {group.sort((a, b) => a.startHour - b.startHour).map(b => (
+                              <div key={b.id} className="flex items-center gap-4 px-5 py-3">
+                                {/* Time badge */}
+                                <div className="shrink-0 w-16 text-center">
+                                  <p className="text-xl font-light text-[#1A1A1A]" style={{ fontFamily: "var(--font-cormorant), serif" }}>{pad(b.startHour)}:00</p>
+                                  <p className="text-[9px] tracking-[0.1em] uppercase text-[#C8C0B8]">{b.people === 2 ? "2 osobe" : "1 osoba"}</p>
+                                </div>
+                                {/* Details */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-[#1A1A1A] truncate">{b.name}</p>
+                                  <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
+                                  <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
+                                </div>
+                                {/* Delete */}
+                                <button onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-1.5">
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Dostupnost ────────────────────────────── */}
         {tab === "availability" && (
@@ -517,12 +573,12 @@ export default function AdminPage() {
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className={labelClass}>Od sata (0–23)</label>
-                          <input type="number" min="0" max="23" required value={bulkRangeStart} onChange={e => setBulkRangeStart(e.target.value)} className={inputClass} />
+                          <label className={labelClass}>Početak (prvi termin od)</label>
+                          <input type="number" min="0" max="23" required value={bulkRangeStart} onChange={e => setBulkRangeStart(e.target.value)} className={inputClass} placeholder="9" />
                         </div>
                         <div>
-                          <label className={labelClass}>Do sata (0–23)</label>
-                          <input type="number" min="0" max="23" required value={bulkRangeEnd} onChange={e => setBulkRangeEnd(e.target.value)} className={inputClass} />
+                          <label className={labelClass}>Kraj (zadnji termin do)</label>
+                          <input type="number" min="1" max="24" required value={bulkRangeEnd} onChange={e => setBulkRangeEnd(e.target.value)} className={inputClass} placeholder="17" />
                         </div>
                       </div>
                     )}
