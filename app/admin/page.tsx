@@ -320,6 +320,7 @@ export default function AdminPage() {
       cells.push(
         <button
           key={dateStr}
+          type="button"
           disabled={isPast}
           onClick={() => { if (isPast) return; toggleDay(dateStr); }}
           className={[
@@ -518,12 +519,12 @@ export default function AdminPage() {
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       {showNav ? (
-                        <button onClick={() => { if (calMonth === 1) { setCalYear(y => y-1); setCalMonth(12); } else setCalMonth(m => m-1); }}
+                        <button type="button" onClick={() => { if (calMonth === 1) { setCalYear(y => y-1); setCalMonth(12); } else setCalMonth(m => m-1); }}
                           className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">‹</button>
                       ) : <div className="w-6" />}
                       <span className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560]">{MONTHS[month - 1]} {year}</span>
                       {showNav ? (
-                        <button onClick={() => { if (calMonth === 12) { setCalYear(y => y+1); setCalMonth(1); } else setCalMonth(m => m+1); }}
+                        <button type="button" onClick={() => { if (calMonth === 12) { setCalYear(y => y+1); setCalMonth(1); } else setCalMonth(m => m+1); }}
                           className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">›</button>
                       ) : <div className="w-6" />}
                     </div>
@@ -532,7 +533,7 @@ export default function AdminPage() {
                     </div>
                     <div className="grid grid-cols-7 gap-0.5">{renderAvailCalendar(year, month)}</div>
                   </div>
-                  <button onClick={() => selectMonth(year, month)}
+                  <button type="button" onClick={() => selectMonth(year, month)}
                     className="w-full text-[9px] tracking-[0.1em] uppercase text-[#A09890] hover:text-[#1A1A1A] hover:bg-[#F5F0EB] py-2 border-t border-[#E2DDD6] transition-colors">
                     Odaberi cijeli {MONTHS[month - 1].toLowerCase()}
                   </button>
@@ -545,7 +546,7 @@ export default function AdminPage() {
                   <span className="text-xs text-[#6B6560]">
                     {selectedDays.size} {selectedDays.size === 1 ? "dan odabran" : "dana odabrano"}
                   </span>
-                  <button onClick={() => setSelectedDays(new Set())} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors">
+                  <button type="button" onClick={() => setSelectedDays(new Set())} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors">
                     ✕ Poništi odabir
                   </button>
                 </div>
@@ -619,7 +620,12 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Single slot form */}
+            </div>
+
+            {/* Right col: single slot form + slot list */}
+            <div className="space-y-6">
+
+              {/* Single slot form — completely separate from bulk form in left col */}
               <div className="bg-white border border-[#E2DDD6] p-5">
                 <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560] mb-4">Dodaj jedan termin</h3>
                 <form onSubmit={addSlot} className="space-y-4">
@@ -644,10 +650,9 @@ export default function AdminPage() {
                   </button>
                 </form>
               </div>
-            </div>
 
-            {/* Right col: slot list */}
-            <div>
+              {/* Slot list */}
+              <div>
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560]">Postavljeni termini</h3>
                 <button onClick={fetchSlots} className="text-xs text-[#A09890] hover:text-[#1A1A1A] transition-colors">↻</button>
@@ -713,7 +718,8 @@ export default function AdminPage() {
                   </div>
                 </>
               )}
-            </div>
+              </div>{/* end slot list */}
+            </div>{/* end right col space-y-6 */}
           </div>
         )}
 
