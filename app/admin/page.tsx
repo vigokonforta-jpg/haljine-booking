@@ -344,10 +344,11 @@ export default function AdminPage() {
         setBulkError(data.error ?? "Greška pri dodavanju termina.");
         return;
       }
-      const { added, skipped } = await res.json();
+      const { added, skipped, pastIgnored } = await res.json();
       setBulkSuccess(
         `Dodano ${added} termina za ${days.length} dana` +
-        (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") + "."
+        (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") +
+        (pastIgnored > 0 ? ` (${pastIgnored} prošlih datuma preskočeno)` : "") + "."
       );
       setSelectedDays(new Set());
       await fetchSlots();
@@ -847,6 +848,7 @@ export default function AdminPage() {
                         const wkOpen = expandedSlotWeeks.has(wk);
                         const datesInWeek = slotByWeek[wk];
                         const totalSlots = datesInWeek.reduce((s, d) => s + (slotsByDate[d]?.length ?? 0), 0);
+                        const wkIsPast = datesInWeek.every(d => d < todayStr);
                         return (
                           <div key={wk} className="border border-[#E2DDD6] overflow-hidden" style={{ background: "var(--noema-bg)" }}>
                             {/* Week header */}
@@ -854,10 +856,11 @@ export default function AdminPage() {
                               onClick={() => setExpandedSlotWeeks(prev => { const n = new Set(prev); n.has(wk) ? n.delete(wk) : n.add(wk); return n; })}
                               className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F5F0EB] transition-colors text-left">
                               <div className="flex items-center gap-3">
-                                <span className="text-[10px] tracking-[0.2em] uppercase font-medium text-[#6B6560]">
+                                <span className={`text-[10px] tracking-[0.2em] uppercase font-medium ${wkIsPast ? "text-[#C8C0B8]" : "text-[#6B6560]"}`}>
                                   {formatWeekRange(wk)}
                                 </span>
                                 <span className="text-[10px] text-[#A09890]">{totalSlots} {totalSlots === 1 ? "termin" : "termina"}</span>
+                                {wkIsPast && <span className="text-[9px] tracking-[0.1em] uppercase text-[#C8C0B8] border border-[#E2DDD6] px-1.5 py-0.5">prošlo</span>}
                               </div>
                               <span className="text-[#A09890]">{chevron(wkOpen)}</span>
                             </button>
@@ -871,15 +874,17 @@ export default function AdminPage() {
                                   const slots = (slotsByDate[date] ?? []).slice().sort((a, b) => a.startHour - b.startHour);
                                   const dayName = WEEKDAYS_FULL[new Date(y, m - 1, d).getDay()];
                                   const dateShort = `${d}. ${MONTHS_GEN[m - 1]}`;
+                                  const dateIsPast = date < todayStr;
                                   return (
-                                    <div key={date} className="bg-white">
+                                    <div key={date} className={dateIsPast ? "bg-[#FAFAF8]" : "bg-white"}>
                                       {/* Day header */}
                                       <button type="button"
                                         onClick={() => setExpandedSlotDays(prev => { const n = new Set(prev); n.has(date) ? n.delete(date) : n.add(date); return n; })}
-                                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#FAFAF8] transition-colors text-left">
+                                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F5F0EB] transition-colors text-left">
                                         <div className="flex items-center gap-3">
-                                          <span className="text-sm text-[#1A1A1A]">{dayName}, {dateShort}</span>
+                                          <span className={`text-sm ${dateIsPast ? "text-[#C8C0B8]" : "text-[#1A1A1A]"}`}>{dayName}, {dateShort}</span>
                                           <span className="text-[10px] text-[#A09890]">{slots.length}</span>
+                                          {dateIsPast && <span className="text-[9px] tracking-[0.1em] uppercase text-[#C8C0B8]">prošlo</span>}
                                         </div>
                                         <span className="text-[#A09890]">{chevron(dayOpen)}</span>
                                       </button>

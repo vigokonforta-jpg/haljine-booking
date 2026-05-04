@@ -4,15 +4,14 @@ import { isAuthenticated } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/availability — list all upcoming slots
+// GET /api/admin/availability — list ALL slots (past and future)
+// Past slots are shown dimmed in the UI so admin can identify and delete ghost rows.
 export async function GET() {
   if (!(await isAuthenticated())) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const slots = await prisma.availabilitySlot.findMany({
-    where: { date: { gte: today } },
     include: { _count: { select: { bookings: true } } },
     orderBy: [{ date: "asc" }, { startHour: "asc" }],
   });
