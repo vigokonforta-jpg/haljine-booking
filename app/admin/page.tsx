@@ -298,7 +298,7 @@ export default function AdminPage() {
 
   function selectMonth(year: number, month: number) {
     const daysInMonth = new Date(year, month, 0).getDate();
-    const next = new Set(selectedDays);
+    const next = new Set<string>(); // always start fresh — never accumulate
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${pad(month)}-${pad(d)}`;
       if (dateStr >= todayStr) next.add(dateStr);
@@ -658,12 +658,12 @@ export default function AdminPage() {
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       {showNav ? (
-                        <button type="button" onClick={() => { if (calMonth === 1) { setCalYear(y => y-1); setCalMonth(12); } else setCalMonth(m => m-1); }}
+                        <button type="button" onClick={() => { setSelectedDays(new Set()); if (calMonth === 1) { setCalYear(y => y-1); setCalMonth(12); } else setCalMonth(m => m-1); }}
                           className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">‹</button>
                       ) : <div className="w-6" />}
                       <span className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560]">{MONTHS[month - 1]} {year}</span>
                       {showNav ? (
-                        <button type="button" onClick={() => { if (calMonth === 12) { setCalYear(y => y+1); setCalMonth(1); } else setCalMonth(m => m+1); }}
+                        <button type="button" onClick={() => { setSelectedDays(new Set()); if (calMonth === 12) { setCalYear(y => y+1); setCalMonth(1); } else setCalMonth(m => m+1); }}
                           className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">›</button>
                       ) : <div className="w-6" />}
                     </div>
@@ -679,15 +679,30 @@ export default function AdminPage() {
                 </div>
               ))}
 
-              {/* Selection status bar */}
+              {/* Selection status — shows every selected date so admin can verify */}
               {selectedDays.size > 0 && (
-                <div className="bg-[#F5F0EB] border border-[#E2DDD6] px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-[#6B6560]">
-                    {selectedDays.size} {selectedDays.size === 1 ? "dan odabran" : "dana odabrano"}
-                  </span>
-                  <button type="button" onClick={() => setSelectedDays(new Set())} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors">
-                    ✕ Poništi odabir
-                  </button>
+                <div className="bg-[#F5F0EB] border border-[#E2DDD6] px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A]">
+                      {selectedDays.size} {selectedDays.size === 1 ? "dan odabran" : "dana odabrano"}
+                    </span>
+                    <button type="button" onClick={() => setSelectedDays(new Set())} className="text-[11px] text-[#A09890] hover:text-red-500 transition-colors">
+                      ✕ Poništi sve
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                    {Array.from(selectedDays).sort().map(d => {
+                      const [y, m, day] = d.split("-").map(Number);
+                      const label = y !== today.getFullYear() ? `${day}.${m}.${y}.` : `${day}.${m}.`;
+                      return (
+                        <span key={d} className="inline-flex items-center gap-1 text-[10px] bg-white border border-[#D0CAC3] px-2 py-0.5 text-[#3A3530]">
+                          {label}
+                          <button type="button" onClick={() => { const n = new Set(selectedDays); n.delete(d); setSelectedDays(n); }}
+                            className="text-[#A09890] hover:text-red-500 leading-none transition-colors">×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -744,17 +759,6 @@ export default function AdminPage() {
                       className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
                       {bulkApplying ? "Dodajem termine…" : `Primijeni na ${selectedDays.size} ${selectedDays.size === 1 ? "dan" : "dana"}`}
                     </button>
-
-                    {/* Selected day chips */}
-                    <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pt-1">
-                      {Array.from(selectedDays).sort().map(d => (
-                        <span key={d} className="text-[10px] bg-[#F5F0EB] border border-[#E2DDD6] px-2 py-0.5 text-[#6B6560] flex items-center gap-1">
-                          {d}
-                          <button type="button" onClick={() => { const n = new Set(selectedDays); n.delete(d); setSelectedDays(n); }}
-                            className="text-[#C8C0B8] hover:text-[#1A1A1A] leading-none">×</button>
-                        </span>
-                      ))}
-                    </div>
                   </form>
                 )}
               </div>
