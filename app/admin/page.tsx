@@ -108,6 +108,14 @@ export default function AdminPage() {
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState("");
 
+  // Loading / error states
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [addSlotLoading, setAddSlotLoading] = useState(false);
+  const [deletingBooking, setDeletingBooking] = useState<number | null>(null);
+  const [deletingSlots, setDeletingSlots] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
+  const [bookingsError, setBookingsError] = useState("");
+
   // Calendar navigation
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -118,14 +126,25 @@ export default function AdminPage() {
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true);
-    const res = await fetch("/api/admin/bookings");
-    if (res.ok) setBookings(await res.json());
-    setBookingsLoading(false);
+    setBookingsError("");
+    try {
+      const res = await fetch("/api/admin/bookings");
+      if (res.ok) setBookings(await res.json());
+      else setBookingsError("Greška pri učitavanju rezervacija.");
+    } catch {
+      setBookingsError("Greška pri učitavanju rezervacija. Provjerite vezu.");
+    } finally {
+      setBookingsLoading(false);
+    }
   }, []);
 
   const fetchSlots = useCallback(async () => {
-    const res = await fetch("/api/admin/availability");
-    if (res.ok) setAvailSlots(await res.json());
+    try {
+      const res = await fetch("/api/admin/availability");
+      if (res.ok) setAvailSlots(await res.json());
+    } catch {
+      // silent — slots will just stay stale
+    }
   }, []);
 
   useEffect(() => {
@@ -152,12 +171,19 @@ export default function AdminPage() {
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setLoginError("");
-    const res = await fetch("/api/admin/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    if (res.ok) { setAuthed(true); fetchBookings(); fetchSlots(); }
-    else setLoginError("Pogrešna lozinka");
+    setLoginLoading(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) { setAuthed(true); fetchBookings(); fetchSlots(); }
+      else setLoginError("Pogrešna lozinka");
+    } catch {
+      setLoginError("Greška pri prijavi. Provjerite vezu i pokušajte ponovo.");
+    } finally {
+      setLoginLoading(false);
+    }
   }
 
   async function logout() {
@@ -167,24 +193,38 @@ export default function AdminPage() {
 
   async function deleteBooking(id: number) {
     if (!confirm("Obrisati ovu rezervaciju?")) return;
-    await fetch(`/api/admin/bookings/${id}`, { method: "DELETE" });
-    setBookings(bs => bs.filter(b => b.id !== id));
+    setDeletingBooking(id);
+    try {
+      await fetch(`/api/admin/bookings/${id}`, { method: "DELETE" });
+      setBookings(bs => bs.filter(b => b.id !== id));
+    } catch {
+      alert("Greška pri brisanju rezervacije. Pokušajte ponovo.");
+    } finally {
+      setDeletingBooking(null);
+    }
   }
 
   async function addSlot(e: React.FormEvent) {
     e.preventDefault();
     setSlotError(""); setSlotSuccess("");
-    const res = await fetch("/api/admin/availability", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: newDate, startHour: Number(newHour), maxSpots: Number(newMaxSpots) }),
-    });
-    if (res.ok) {
-      const [y, m, d] = newDate.split("-").map(Number);
-      setSlotSuccess(`Termin dodan: ${d}.${m}.${y}. u ${pad(Number(newHour))}:00`);
-      await fetchSlots();
-    } else {
-      const data = await res.json();
-      setSlotError(data.error ?? "Greška");
+    setAddSlotLoading(true);
+    try {
+      const res = await fetch("/api/admin/availability", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: newDate, startHour: Number(newHour), maxSpots: Number(newMaxSpots) }),
+      });
+      if (res.ok) {
+        const [y, m, d] = newDate.split("-").map(Number);
+        setSlotSuccess(`Termin dodan: ${d}.${m}.${y}. u ${pad(Number(newHour))}:00`);
+        await fetchSlots();
+      } else {
+        const data = await res.json();
+        setSlotError(data.error ?? "Greška pri dodavanju termina.");
+      }
+    } catch {
+      setSlotError("Greška pri dodavanju termina. Pokušajte ponovo.");
+    } finally {
+      setAddSlotLoading(false);
     }
   }
 
@@ -208,18 +248,32 @@ export default function AdminPage() {
   async function deleteSelectedSlots() {
     const count = selectedSlots.size;
     if (!confirm(`Obrisati ${count} ${count === 1 ? "termin" : count < 5 ? "termina" : "termina"}? Sve vezane rezervacije će biti obrisane.`)) return;
-    await Promise.all(
-      Array.from(selectedSlots).map(id => fetch(`/api/admin/availability/${id}`, { method: "DELETE" }))
-    );
-    setAvailSlots(ss => ss.filter(s => !selectedSlots.has(s.id)));
-    setSelectedSlots(new Set());
+    setDeletingSlots(true);
+    try {
+      await Promise.all(
+        Array.from(selectedSlots).map(id => fetch(`/api/admin/availability/${id}`, { method: "DELETE" }))
+      );
+      setAvailSlots(ss => ss.filter(s => !selectedSlots.has(s.id)));
+      setSelectedSlots(new Set());
+    } catch {
+      alert("Greška pri brisanju termina. Pokušajte ponovo.");
+    } finally {
+      setDeletingSlots(false);
+    }
   }
 
   async function sendReminders() {
-    const res = await fetch("/api/send-reminders", { method: "POST" });
-    if (!res.ok) { alert("Greška pri slanju. Pokušajte se odjaviti i prijaviti ponovo."); return; }
-    const data = await res.json();
-    alert(data.sent > 0 ? `Poslano ${data.sent} podsjetnika.` : "Nema novih podsjetnika za slanje.");
+    setSendingReminders(true);
+    try {
+      const res = await fetch("/api/send-reminders", { method: "POST" });
+      if (!res.ok) { alert("Greška pri slanju. Pokušajte se odjaviti i prijaviti ponovo."); return; }
+      const data = await res.json();
+      alert(data.sent > 0 ? `Poslano ${data.sent} podsjetnika.` : "Nema novih podsjetnika za slanje.");
+    } catch {
+      alert("Greška pri slanju podsjetnika. Provjerite vezu.");
+    } finally {
+      setSendingReminders(false);
+    }
   }
 
   async function saveInstructions(e: React.FormEvent) {
@@ -395,8 +449,8 @@ export default function AdminPage() {
               className={inputClass} style={{ fontFamily: "var(--font-inter), sans-serif" }} placeholder="••••••••" autoFocus />
           </div>
           {loginError && <p className="text-xs text-red-500">{loginError}</p>}
-          <button type="submit" className="w-full py-3.5 bg-[#1A1A1A] text-white text-xs tracking-[0.2em] uppercase hover:bg-[#333] transition-colors">
-            Prijavi se
+          <button type="submit" disabled={loginLoading} className="w-full py-3.5 bg-[#1A1A1A] text-white text-xs tracking-[0.2em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
+            {loginLoading ? "Prijavljujem…" : "Prijavi se"}
           </button>
         </form>
       </div>
@@ -415,14 +469,14 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <a href="/" className="hidden sm:inline text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide whitespace-nowrap">← Klijentska stranica</a>
-            <button onClick={sendReminders} className="hidden sm:inline text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors whitespace-nowrap">Pošalji podsjetnike</button>
+            <button onClick={sendReminders} disabled={sendingReminders} className="hidden sm:inline text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] disabled:opacity-40 transition-colors whitespace-nowrap">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
             <button onClick={logout} className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors">Odjava</button>
           </div>
         </div>
         <div className="sm:hidden border-t border-[#E2DDD6] px-4 py-2 flex items-center gap-4">
           <a href="/" className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">← Klijentska stranica</a>
           <span className="text-[#E2DDD6] select-none">·</span>
-          <button onClick={sendReminders} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">Pošalji podsjetnike</button>
+          <button onClick={sendReminders} disabled={sendingReminders} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] disabled:opacity-40 transition-colors tracking-wide">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
         </div>
       </header>
 
@@ -477,6 +531,11 @@ export default function AdminPage() {
                 <h2 className="text-xs tracking-[0.2em] uppercase text-[#6B6560]">Nadolazeće rezervacije</h2>
                 <button onClick={fetchBookings} className="text-xs text-[#A09890] hover:text-[#1A1A1A] transition-colors">↻ Osvježi</button>
               </div>
+              {bookingsError && (
+                <div className="bg-red-50 border border-red-200 px-4 py-3 mb-4">
+                  <p className="text-xs text-red-600">{bookingsError}</p>
+                </div>
+              )}
               {bookingsLoading ? (
                 <div className="flex justify-center py-16"><div className="w-5 h-5 border-2 border-[#1A1A1A] border-t-transparent rounded-full animate-spin" /></div>
               ) : bookings.length === 0 ? (
@@ -542,10 +601,13 @@ export default function AdminPage() {
                                         <p className="text-xs text-[#A09890] truncate mt-0.5">{b.email}</p>
                                         <p className="text-xs text-[#A09890] mt-0.5">{b.phone}</p>
                                       </div>
-                                      <button type="button" onClick={() => deleteBooking(b.id)} className="shrink-0 text-[#C8C0B8] hover:text-red-400 transition-colors p-1.5">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                      <button type="button" onClick={() => deleteBooking(b.id)} disabled={deletingBooking === b.id} className="shrink-0 text-[#C8C0B8] hover:text-red-400 disabled:opacity-40 transition-colors p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                                        {deletingBooking === b.id
+                                          ? <div className="w-4 h-4 border-2 border-red-300 border-t-transparent rounded-full animate-spin" />
+                                          : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        }
                                       </button>
                                     </div>
                                   ))}
@@ -703,8 +765,8 @@ export default function AdminPage() {
                   </div>
                   {slotError   && <p className="text-xs text-red-500">{slotError}</p>}
                   {slotSuccess && <p className="text-xs text-emerald-600">{slotSuccess}</p>}
-                  <button type="submit" className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] transition-colors">
-                    Dodaj termin
+                  <button type="submit" disabled={addSlotLoading} className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
+                    {addSlotLoading ? "Dodajem…" : "Dodaj termin"}
                   </button>
                 </form>
               </div>
@@ -744,12 +806,15 @@ export default function AdminPage() {
                         {availSlots.every(s => selectedSlots.has(s.id)) ? "Poništi odabir" : "Odaberi sve"}
                       </button>
                       {selectedSlots.size > 0 && (
-                        <button type="button" onClick={deleteSelectedSlots}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 border border-red-200 text-red-600 text-xs tracking-[0.1em] hover:bg-red-100 transition-colors">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Obriši odabrane ({selectedSlots.size})
+                        <button type="button" onClick={deleteSelectedSlots} disabled={deletingSlots}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 border border-red-200 text-red-600 text-xs tracking-[0.1em] hover:bg-red-100 disabled:opacity-40 transition-colors">
+                          {deletingSlots
+                            ? <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                          }
+                          {deletingSlots ? "Brišem…" : `Obriši odabrane (${selectedSlots.size})`}
                         </button>
                       )}
                     </div>

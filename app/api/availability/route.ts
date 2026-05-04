@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/availability?year=2025&month=4
 // Returns slots with booking counts for the given month
 export async function GET(request: NextRequest) {
@@ -33,5 +35,5 @@ export async function GET(request: NextRequest) {
     spotsLeft: slot.maxSpots - slot.bookings.reduce((sum, b) => sum + b.people, 0),
   }));
 
-  return Response.json(result);
+  return Response.json(result, { headers: { "Cache-Control": "no-store" } });
 }

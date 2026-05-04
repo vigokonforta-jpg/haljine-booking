@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import { isAuthenticated } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/bookings — list all upcoming bookings
 export async function GET() {
   if (!(await isAuthenticated())) {

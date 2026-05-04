@@ -42,7 +42,7 @@ export async function createSession() {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 24 * 7,
   });
 }
 

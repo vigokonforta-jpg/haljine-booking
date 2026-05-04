@@ -149,9 +149,14 @@ export default function BookingPage() {
   const nextMonth = viewMonth === 12 ? 1 : viewMonth + 1;
   const nextYear  = viewMonth === 12 ? viewYear + 1 : viewYear;
 
-  const fetchSlots = useCallback(async (year: number, month: number) => {
-    const res = await fetch(`/api/availability?year=${year}&month=${month}`);
-    return res.json() as Promise<Slot[]>;
+  const fetchSlots = useCallback(async (year: number, month: number): Promise<Slot[]> => {
+    try {
+      const res = await fetch(`/api/availability?year=${year}&month=${month}`);
+      if (!res.ok) return [];
+      return res.json();
+    } catch {
+      return [];
+    }
   }, []);
 
   const refreshSlots = useCallback(() => {
@@ -499,7 +504,7 @@ export default function BookingPage() {
                       type="button"
                       onClick={() => setPeople(n)}
                       className={[
-                        "flex-1 py-2.5 text-sm border transition-colors",
+                        "flex-1 py-3 text-sm border transition-colors",
                         people === n
                           ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
                           : "text-[#6B6560] border-[#E2DDD6] hover:border-[#1A1A1A]",

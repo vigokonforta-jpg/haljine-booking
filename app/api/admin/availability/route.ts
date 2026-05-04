@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { isAuthenticated } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/availability — list all upcoming slots
 export async function GET() {
   if (!(await isAuthenticated())) {
