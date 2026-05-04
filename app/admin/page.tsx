@@ -320,23 +320,37 @@ export default function AdminPage() {
     }
     if (!hours.length) { setBulkError("Unesite valjane sate."); setBulkApplying(false); return; }
 
-    let added = 0, skipped = 0;
-    for (const date of Array.from(selectedDays).sort()) {
-      for (const h of hours) {
-        const res = await fetch("/api/admin/availability", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date, startHour: h, maxSpots: Number(bulkMaxSpots) }),
-        });
-        if (res.ok) added++; else skipped++;
-      }
-    }
-    setBulkSuccess(
-      `Dodano ${added} termina za ${selectedDays.size} dana` +
-      (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") + "."
+    // Snapshot selected days ONCE before any async work
+    const days = Array.from(selectedDays).sort();
+    console.log("[bulk] days:", days, "hours:", hours);
+
+    const slots = days.flatMap(date =>
+      hours.map(h => ({ date, startHour: h, maxSpots: Number(bulkMaxSpots) }))
     );
-    setSelectedDays(new Set());
-    setBulkApplying(false);
-    await fetchSlots();
+
+    try {
+      const res = await fetch("/api/admin/availability/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slots }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setBulkError(data.error ?? "Greška pri dodavanju termina.");
+        return;
+      }
+      const { added, skipped } = await res.json();
+      setBulkSuccess(
+        `Dodano ${added} termina za ${days.length} dana` +
+        (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") + "."
+      );
+      setSelectedDays(new Set());
+      await fetchSlots();
+    } catch {
+      setBulkError("Greška pri dodavanju termina. Pokušajte ponovo.");
+    } finally {
+      setBulkApplying(false);
+    }
   }
 
   // ── Postavke ──────────────────────────────────────
