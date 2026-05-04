@@ -321,12 +321,17 @@ export default function AdminPage() {
     if (!hours.length) { setBulkError("Unesite valjane sate."); setBulkApplying(false); return; }
 
     // Snapshot selected days ONCE before any async work
+    console.log("[bulk] selectedDays.size =", selectedDays.size);
+    console.log("[bulk] selectedDays contents =", Array.from(selectedDays).sort());
     const days = Array.from(selectedDays).sort();
-    console.log("[bulk] days:", days, "hours:", hours);
+    console.log("[bulk] days snapshot =", days);
+    console.log("[bulk] hours =", hours);
 
     const slots = days.flatMap(date =>
       hours.map(h => ({ date, startHour: h, maxSpots: Number(bulkMaxSpots) }))
     );
+    console.log("[bulk] total slots to send =", slots.length);
+    console.log("[bulk] FULL PAYLOAD =", JSON.stringify({ slots }, null, 2));
 
     try {
       const res = await fetch("/api/admin/availability/bulk", {
