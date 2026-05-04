@@ -11,7 +11,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: { slots?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
   const slots = body.slots as SlotInput[];
 
   if (!Array.isArray(slots) || slots.length === 0) {
@@ -21,16 +27,27 @@ export async function POST(request: NextRequest) {
   const uniqueDates = [...new Set(slots.map((s) => s.date))].sort();
   console.log("[bulk] received", slots.length, "slots for", uniqueDates.length, "dates:", uniqueDates);
 
-  const result = await prisma.availabilitySlot.createMany({
-    data: slots.map((s) => ({
-      date: s.date,
-      startHour: Number(s.startHour),
-      maxSpots: Number(s.maxSpots),
-    })),
-    skipDuplicates: true,
-  });
+  let added = 0;
+  let skipped = 0;
 
-  console.log("[bulk] created", result.count, "— skipped", slots.length - result.count);
+  // Run all creates in parallel — individual catches handle unique-constraint violations
+  await Promise.all(
+    slots.map(async (s) => {
+      try {
+        await prisma.availabilitySlot.create({
+          data: {
+            date: s.date,
+            startHour: Number(s.startHour),
+            maxSpots: Number(s.maxSpots),
+          },
+        });
+        added++;
+      } catch {
+        skipped++; // unique constraint = slot already exists for that date/hour
+      }
+    })
+  );
 
-  return Response.json({ added: result.count, skipped: slots.length - result.count });
+  console.log("[bulk] created", added, "— skipped", skipped);
+  return Response.json({ added, skipped });
 }
