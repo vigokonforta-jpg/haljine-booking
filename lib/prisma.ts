@@ -1,11 +1,10 @@
 import { PrismaClient } from "@/app/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 
 function createClient() {
-  // Prisma Postgres sets PRISMA_DATABASE_URL; fall back to DATABASE_URL for local dev
-  const connectionString = (process.env.PRISMA_DATABASE_URL ?? process.env.DATABASE_URL)!;
-  const adapter = new PrismaPg({ connectionString });
-  return new PrismaClient({ adapter } as never);
+  // Prisma Postgres (Accelerate) uses a prisma+postgres:// URL — must use accelerateUrl,
+  // not @prisma/adapter-pg (pg driver doesn't understand the prisma+postgres:// protocol).
+  const accelerateUrl = (process.env.PRISMA_DATABASE_URL ?? process.env.DATABASE_URL)!;
+  return new PrismaClient({ accelerateUrl });
 }
 
 declare global {
