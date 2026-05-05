@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/app/generated/prisma";
 import { isAuthenticated } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +36,12 @@ export async function POST(request: NextRequest) {
   let added = 0;
   let skipped = 0;
   let pastIgnored = 0;
+  const errors: string[] = [];
 
   await Promise.all(
     slots.map(async (s) => {
-      // Past-date slots are ghost rows — don't count them as user-facing duplicates.
-      // The calendar prevents selecting past days so this only fires for DB ghosts.
+      // Past-date slots are ghost rows — calendar prevents selecting them so
+      // this guard only fires if stale DB rows match a date we can't show.
       if (s.date < today) {
         console.log("[bulk] PAST GHOST ignored:", s.date, "hour:", s.startHour);
         pastIgnored++;
@@ -57,13 +59,31 @@ export async function POST(request: NextRequest) {
         console.log("[bulk] OK:", s.date, "hour:", s.startHour);
         added++;
       } catch (err) {
-        // Unique constraint — a future slot for this date/hour already exists.
-        console.log("[bulk] SKIP (future duplicate):", s.date, "hour:", s.startHour, String(err));
-        skipped++;
+        const isUniqueViolation =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+        if (isUniqueViolation) {
+          console.log("[bulk] SKIP (duplicate):", s.date, "hour:", s.startHour);
+          skipped++;
+        } else {
+          // Real error — DB connection problem, schema mismatch, etc.
+          const msg = `${s.date}@${s.startHour}: ${String(err)}`;
+          console.error("[bulk] ERROR:", msg);
+          errors.push(msg);
+        }
       }
     })
   );
 
-  console.log("[bulk] DONE — added:", added, "skipped:", skipped, "pastIgnored:", pastIgnored);
-  return Response.json({ added, skipped, pastIgnored });
+  console.log("[bulk] DONE — added:", added, "skipped:", skipped,
+    "pastIgnored:", pastIgnored, "errors:", errors.length);
+
+  if (errors.length > 0 && added === 0) {
+    // All attempts failed with real errors — surface the first one
+    return Response.json(
+      { error: `DB error: ${errors[0]}`, added, skipped, pastIgnored, errors },
+      { status: 500 }
+    );
+  }
+
+  return Response.json({ added, skipped, pastIgnored, errors });
 }
