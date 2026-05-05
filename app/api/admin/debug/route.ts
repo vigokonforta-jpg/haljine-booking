@@ -13,8 +13,8 @@ export async function GET() {
 
   let totalSlots = 0;
   let uniqueDates: string[] = [];
-  let futureSlots: { date: string; count: number }[] = [];
-  let pastSlots: { date: string; count: number }[] = [];
+  const futureSlots: { date: string; count: number }[] = [];
+  const pastSlots: { date: string; count: number }[] = [];
   let dbError: string | null = null;
 
   try {

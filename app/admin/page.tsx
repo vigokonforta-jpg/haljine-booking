@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 type BookingEntry = {
   id: number; name: string; email: string; phone: string;
@@ -18,12 +19,6 @@ const MONTHS_GEN = [
   "siječnja", "veljače", "ožujka", "travnja", "svibnja", "lipnja",
   "srpnja", "kolovoza", "rujna", "listopada", "studenog", "prosinca",
 ];
-function formatCroatianDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const weekday = WEEKDAYS_FULL[new Date(y, m - 1, d).getDay()];
-  return `${weekday}, ${d}. ${MONTHS_GEN[m - 1]} ${y}.`;
-}
-
 // Returns the ISO Monday of the week containing dateStr, as "YYYY-MM-DD"
 function getMondayStr(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -147,12 +142,13 @@ export default function AdminPage() {
       .finally(() => setAuthChecking(false));
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (authed) {
-      fetchSlots();
-      fetch("/api/admin/settings").then(r => r.json()).then(d => setInstructions(d.instructions ?? ""));
-    }
+    if (!authed) return;
+    void fetchSlots();
+    fetch("/api/admin/settings").then(r => r.json()).then(d => setInstructions(d.instructions ?? ""));
   }, [authed, fetchSlots]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!authed || tab !== "bookings") return;
@@ -425,13 +421,13 @@ export default function AdminPage() {
             <span className="text-[9px] tracking-[0.15em] uppercase text-[#C8C0B8]">Admin</span>
           </div>
           <div className="flex items-center gap-2">
-            <a href="/" className="hidden sm:inline text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide whitespace-nowrap">← Klijentska stranica</a>
+            <Link href="/" className="hidden sm:inline text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide whitespace-nowrap">← Klijentska stranica</Link>
             <button onClick={sendReminders} disabled={sendingReminders} className="hidden sm:inline text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] disabled:opacity-40 transition-colors whitespace-nowrap">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
             <button onClick={logout} className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors">Odjava</button>
           </div>
         </div>
         <div className="sm:hidden border-t border-[#E2DDD6] px-4 py-2 flex items-center gap-4">
-          <a href="/" className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">← Klijentska stranica</a>
+          <Link href="/" className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">← Klijentska stranica</Link>
           <span className="text-[#E2DDD6] select-none">·</span>
           <button onClick={sendReminders} disabled={sendingReminders} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] disabled:opacity-40 transition-colors tracking-wide">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
         </div>
