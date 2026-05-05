@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@/app/generated/prisma";
 import { isAuthenticated } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -59,8 +58,10 @@ export async function POST(request: NextRequest) {
         console.log("[bulk] OK:", s.date, "hour:", s.startHour);
         added++;
       } catch (err) {
+        // P2002 is Prisma's unique-constraint violation code
         const isUniqueViolation =
-          err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+          typeof err === "object" && err !== null && "code" in err &&
+          (err as { code: unknown }).code === "P2002";
         if (isUniqueViolation) {
           console.log("[bulk] SKIP (duplicate):", s.date, "hour:", s.startHour);
           skipped++;

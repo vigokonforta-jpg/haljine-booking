@@ -46,11 +46,7 @@ function formatWeekRange(mondayStr: string, includeYear = false): string {
   return includeYear ? `${a} – ${b} ${mon.getFullYear()}.` : `${a} – ${b}`;
 }
 
-const MONTHS = [
-  "Siječanj","Veljača","Ožujak","Travanj","Svibanj","Lipanj",
-  "Srpanj","Kolovoz","Rujan","Listopad","Studeni","Prosinac",
-];
-const DAYS_HR = ["Ned","Pon","Uto","Sri","Čet","Pet","Sub"];
+const BULK_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -69,7 +65,6 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<BookingEntry[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const [expandedBookingWeeks, setExpandedBookingWeeks] = useState<Set<string>>(new Set());
 
   // Availability week/day expansion in slot list
   const [expandedSlotWeeks, setExpandedSlotWeeks] = useState<Set<string>>(new Set());
@@ -83,12 +78,17 @@ export default function AdminPage() {
   const [slotError, setSlotError] = useState("");
   const [slotSuccess, setSlotSuccess] = useState("");
 
-  // Availability — bulk multi-select (independent state from single slot)
-  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
-  const [bulkHourMode, setBulkHourMode] = useState<"specific" | "range">("specific");
-  const [bulkHours, setBulkHours] = useState("9,10,11,14,15,16");
-  const [bulkRangeStart, setBulkRangeStart] = useState("9");
-  const [bulkRangeEnd, setBulkRangeEnd] = useState("17");
+  // Availability — bulk date-range form
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const defaultTo = (() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 6);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
+  const [bulkFrom, setBulkFrom] = useState(todayStr);
+  const [bulkTo, setBulkTo] = useState(defaultTo);
+  const [bulkCheckedHours, setBulkCheckedHours] = useState<Set<number>>(new Set(BULK_HOURS));
   const [bulkMaxSpots, setBulkMaxSpots] = useState("3");
   const [bulkApplying, setBulkApplying] = useState(false);
   const [bulkError, setBulkError] = useState("");
@@ -115,14 +115,6 @@ export default function AdminPage() {
   const [deletingSlots, setDeletingSlots] = useState(false);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [bookingsError, setBookingsError] = useState("");
-
-  // Calendar navigation
-  const today = new Date();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth() + 1);
-  const calNextMonth = calMonth === 12 ? 1 : calMonth + 1;
-  const calNextYear  = calMonth === 12 ? calYear + 1 : calYear;
-  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true);
@@ -288,50 +280,35 @@ export default function AdminPage() {
     else setInstructionsError(res.status === 401 ? "Sesija je istekla. Osvježite stranicu." : "Greška pri spremanju.");
   }
 
-  // ── Multi-select scheduling ────────────────────────
-
-  function toggleDay(dateStr: string) {
-    const next = new Set(selectedDays);
-    if (next.has(dateStr)) next.delete(dateStr); else next.add(dateStr);
-    setSelectedDays(next);
-  }
-
-  function selectMonth(year: number, month: number) {
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const next = new Set<string>(); // always start fresh — never accumulate
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${pad(month)}-${pad(d)}`;
-      if (dateStr >= todayStr) next.add(dateStr);
-    }
-    setSelectedDays(next);
+  function toggleBulkHour(h: number) {
+    setBulkCheckedHours(prev => {
+      const next = new Set(prev);
+      if (next.has(h)) next.delete(h); else next.add(h);
+      return next;
+    });
   }
 
   async function applyBulkSchedule(e: React.FormEvent) {
     e.preventDefault();
     setBulkApplying(true); setBulkError(""); setBulkSuccess("");
 
-    let hours: number[];
-    if (bulkHourMode === "range") {
-      hours = [];
-      // end is exclusive: range 9–17 creates slots 9:00–10:00 … 16:00–17:00
-      for (let h = Number(bulkRangeStart); h < Number(bulkRangeEnd); h++) hours.push(h);
-    } else {
-      hours = bulkHours.split(",").map(h => parseInt(h.trim())).filter(h => !isNaN(h) && h >= 0 && h <= 23);
-    }
-    if (!hours.length) { setBulkError("Unesite valjane sate."); setBulkApplying(false); return; }
+    const hours = Array.from(bulkCheckedHours).sort((a, b) => a - b);
+    if (!hours.length) { setBulkError("Odaberite barem jedan sat."); setBulkApplying(false); return; }
+    if (!bulkFrom || !bulkTo) { setBulkError("Odaberite raspon datuma."); setBulkApplying(false); return; }
+    if (bulkFrom > bulkTo) { setBulkError("Datum 'Od' mora biti prije datuma 'Do'."); setBulkApplying(false); return; }
 
-    // Snapshot selected days ONCE before any async work
-    console.log("[bulk] selectedDays.size =", selectedDays.size);
-    console.log("[bulk] selectedDays contents =", Array.from(selectedDays).sort());
-    const days = Array.from(selectedDays).sort();
-    console.log("[bulk] days snapshot =", days);
-    console.log("[bulk] hours =", hours);
+    // Generate every date in the range
+    const days: string[] = [];
+    const cur = new Date(bulkFrom + "T00:00:00");
+    const end = new Date(bulkTo + "T00:00:00");
+    while (cur <= end) {
+      days.push(`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`);
+      cur.setDate(cur.getDate() + 1);
+    }
 
     const slots = days.flatMap(date =>
       hours.map(h => ({ date, startHour: h, maxSpots: Number(bulkMaxSpots) }))
     );
-    console.log("[bulk] total slots to send =", slots.length);
-    console.log("[bulk] FULL PAYLOAD =", JSON.stringify({ slots }, null, 2));
 
     try {
       const res = await fetch("/api/admin/availability/bulk", {
@@ -346,11 +323,10 @@ export default function AdminPage() {
       }
       const { added, skipped, pastIgnored } = await res.json();
       setBulkSuccess(
-        `Dodano ${added} termina za ${days.length} dana` +
+        `Dodano ${added} termina za ${days.length} ${days.length === 1 ? "dan" : "dana"}` +
         (skipped > 0 ? ` (${skipped} preskočeno — već postoje)` : "") +
         (pastIgnored > 0 ? ` (${pastIgnored} prošlih datuma preskočeno)` : "") + "."
       );
-      setSelectedDays(new Set());
       await fetchSlots();
     } catch {
       setBulkError("Greška pri dodavanju termina. Pokušajte ponovo.");
@@ -403,45 +379,6 @@ export default function AdminPage() {
     slotsByDate[s.date].push(s);
   }
   const sortedDates = Object.keys(slotsByDate).sort();
-
-  function buildCalendar(year: number, month: number) {
-    return { firstDay: new Date(year, month - 1, 1).getDay(), daysInMonth: new Date(year, month, 0).getDate() };
-  }
-
-  function renderAvailCalendar(year: number, month: number) {
-    const { firstDay, daysInMonth } = buildCalendar(year, month);
-    const cells: React.ReactNode[] = [];
-    for (let i = 0; i < firstDay; i++) cells.push(<div key={`e-${i}`} />);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${pad(month)}-${pad(d)}`;
-      const daySlots = slotsByDate[dateStr];
-      const hasSlots = !!daySlots?.length;
-      const isPast = dateStr < todayStr;
-      const isSelected = selectedDays.has(dateStr);
-      cells.push(
-        <button
-          key={dateStr}
-          type="button"
-          disabled={isPast}
-          onClick={() => { if (isPast) return; toggleDay(dateStr); }}
-          className={[
-            "aspect-square flex flex-col items-center justify-center rounded-full text-xs transition-all",
-            isPast ? "text-[#D0CAC3] cursor-default" :
-            isSelected && hasSlots ? "bg-[#1A1A1A] text-white ring-2 ring-offset-1 ring-[#A09890]" :
-            isSelected ? "bg-[#F5F0EB] text-[#1A1A1A] ring-2 ring-offset-1 ring-[#1A1A1A] font-medium" :
-            hasSlots ? "bg-[#1A1A1A] text-white font-medium" :
-            "hover:bg-[#F5F0EB] text-[#6B6560]",
-          ].join(" ")}
-        >
-          <span>{d}</span>
-          {hasSlots && !isPast && (
-            <span className={`text-[8px] ${isSelected ? "text-[#A09890]" : "text-white/70"}`}>{daySlots.length}</span>
-          )}
-        </button>
-      );
-    }
-    return cells;
-  }
 
   const inputClass = "w-full border border-[#E2DDD6] bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder-[#C8C0B8] focus:outline-none focus:border-[#1A1A1A] transition-colors";
   const labelClass = "block text-[10px] tracking-[0.15em] uppercase text-[#A09890] mb-1.5";
@@ -648,128 +585,112 @@ export default function AdminPage() {
         {/* ── Dostupnost ────────────────────────────── */}
         {tab === "availability" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left col */}
-            <div className="space-y-4">
-              {/* Calendars with multi-select */}
-              {[
-                { year: calYear, month: calMonth, showNav: true },
-                { year: calNextYear, month: calNextMonth, showNav: false },
-              ].map(({ year, month, showNav }) => (
-                <div key={`${year}-${month}`} className="bg-white border border-[#E2DDD6]">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      {showNav ? (
-                        <button type="button" onClick={() => { setSelectedDays(new Set()); if (calMonth === 1) { setCalYear(y => y-1); setCalMonth(12); } else setCalMonth(m => m-1); }}
-                          className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">‹</button>
-                      ) : <div className="w-6" />}
-                      <span className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560]">{MONTHS[month - 1]} {year}</span>
-                      {showNav ? (
-                        <button type="button" onClick={() => { setSelectedDays(new Set()); if (calMonth === 12) { setCalYear(y => y+1); setCalMonth(1); } else setCalMonth(m => m+1); }}
-                          className="w-6 h-6 flex items-center justify-center text-[#A09890] hover:text-[#1A1A1A] transition-colors">›</button>
-                      ) : <div className="w-6" />}
-                    </div>
-                    <div className="grid grid-cols-7 gap-0.5 mb-0.5">
-                      {DAYS_HR.map(d => <div key={d} className="text-center text-[9px] tracking-wider uppercase text-[#C8C0B8] py-1">{d}</div>)}
-                    </div>
-                    <div className="grid grid-cols-7 gap-0.5">{renderAvailCalendar(year, month)}</div>
-                  </div>
-                  <button type="button" onClick={() => selectMonth(year, month)}
-                    className="w-full text-[9px] tracking-[0.1em] uppercase text-[#A09890] hover:text-[#1A1A1A] hover:bg-[#F5F0EB] py-2 border-t border-[#E2DDD6] transition-colors">
-                    Odaberi cijeli {MONTHS[month - 1].toLowerCase()}
-                  </button>
-                </div>
-              ))}
 
-              {/* Selection status — shows every selected date so admin can verify */}
-              {selectedDays.size > 0 && (
-                <div className="bg-[#F5F0EB] border border-[#E2DDD6] px-4 py-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] tracking-[0.15em] uppercase font-medium text-[#1A1A1A]">
-                      {selectedDays.size} {selectedDays.size === 1 ? "dan odabran" : "dana odabrano"}
-                    </span>
-                    <button type="button" onClick={() => setSelectedDays(new Set())} className="text-[11px] text-[#A09890] hover:text-red-500 transition-colors">
-                      ✕ Poništi sve
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                    {Array.from(selectedDays).sort().map(d => {
-                      const [y, m, day] = d.split("-").map(Number);
-                      const label = y !== today.getFullYear() ? `${day}.${m}.${y}.` : `${day}.${m}.`;
-                      return (
-                        <span key={d} className="inline-flex items-center gap-1 text-[10px] bg-white border border-[#D0CAC3] px-2 py-0.5 text-[#3A3530]">
-                          {label}
-                          <button type="button" onClick={() => { const n = new Set(selectedDays); n.delete(d); setSelectedDays(n); }}
-                            className="text-[#A09890] hover:text-red-500 leading-none transition-colors">×</button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+            {/* Left col — bulk date-range form */}
+            <div>
+              <div className="bg-white border border-[#E2DDD6] p-5">
+                <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560] mb-5">Grupno dodavanje termina</h3>
+                <form onSubmit={applyBulkSchedule} className="space-y-5">
 
-              {/* Bulk schedule form — active when days are selected */}
-              <div className={`bg-white border p-5 transition-colors ${selectedDays.size > 0 ? "border-[#1A1A1A]" : "border-[#E2DDD6]"}`}>
-                <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560] mb-1">Postavi termine za odabrane dane</h3>
-                {selectedDays.size === 0 ? (
-                  <p className="text-[11px] text-[#C8C0B8] mt-2">
-                    Kliknite na dane u kalendaru ili koristite &ldquo;Odaberi cijeli&hellip;&rdquo; za grupno postavljanje termina.
-                  </p>
-                ) : (
-                  <form onSubmit={applyBulkSchedule} className="space-y-4 mt-4">
-                    {/* Mode toggle */}
-                    <div className="flex gap-2">
-                      {(["specific", "range"] as const).map(mode => (
-                        <button key={mode} type="button" onClick={() => setBulkHourMode(mode)}
-                          className={[
-                            "flex-1 py-2 text-xs tracking-[0.1em] border transition-colors",
-                            bulkHourMode === mode ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "text-[#6B6560] border-[#E2DDD6] hover:bg-[#F5F0EB]",
-                          ].join(" ")}>
-                          {mode === "specific" ? "Određeni sati" : "Raspon sati"}
-                        </button>
-                      ))}
-                    </div>
-
-                    {bulkHourMode === "specific" ? (
-                      <div>
-                        <label className={labelClass}>Sati (odvojeni zarezom)</label>
-                        <input type="text" required value={bulkHours} onChange={e => setBulkHours(e.target.value)}
-                          className={inputClass} placeholder="9,10,11,14,15,16" />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={labelClass}>Početak (prvi termin od)</label>
-                          <input type="number" min="0" max="23" required value={bulkRangeStart} onChange={e => setBulkRangeStart(e.target.value)} className={inputClass} placeholder="9" />
-                        </div>
-                        <div>
-                          <label className={labelClass}>Kraj (zadnji termin do)</label>
-                          <input type="number" min="1" max="24" required value={bulkRangeEnd} onChange={e => setBulkRangeEnd(e.target.value)} className={inputClass} placeholder="17" />
-                        </div>
-                      </div>
-                    )}
-
+                  {/* Date range */}
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelClass}>Maks. mjesta po terminu</label>
-                      <input type="number" min="1" max="20" required value={bulkMaxSpots} onChange={e => setBulkMaxSpots(e.target.value)} className={inputClass} />
+                      <label className={labelClass}>Od datuma</label>
+                      <input
+                        type="date"
+                        required
+                        value={bulkFrom}
+                        min={todayStr}
+                        onChange={e => setBulkFrom(e.target.value)}
+                        className={inputClass}
+                      />
                     </div>
+                    <div>
+                      <label className={labelClass}>Do datuma</label>
+                      <input
+                        type="date"
+                        required
+                        value={bulkTo}
+                        min={bulkFrom || todayStr}
+                        onChange={e => setBulkTo(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
 
-                    {bulkError   && <p className="text-xs text-red-500">{bulkError}</p>}
-                    {bulkSuccess && <p className="text-xs text-emerald-600">{bulkSuccess}</p>}
+                  {/* Hour checkboxes */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelClass} style={{ marginBottom: 0 }}>Sati</label>
+                      <div className="flex gap-3">
+                        <button type="button"
+                          onClick={() => setBulkCheckedHours(new Set(BULK_HOURS))}
+                          className="text-[10px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">
+                          Sve
+                        </button>
+                        <button type="button"
+                          onClick={() => setBulkCheckedHours(new Set())}
+                          className="text-[10px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">
+                          Ništa
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {BULK_HOURS.map(h => {
+                        const checked = bulkCheckedHours.has(h);
+                        return (
+                          <label
+                            key={h}
+                            className={[
+                              "flex items-center gap-2 px-3 py-2.5 border cursor-pointer select-none transition-colors text-sm",
+                              checked ? "border-[#1A1A1A] bg-[#F5F0EB] text-[#1A1A1A]" : "border-[#E2DDD6] text-[#6B6560] hover:bg-[#FAFAF8]",
+                            ].join(" ")}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleBulkHour(h)}
+                              className="w-3.5 h-3.5 accent-[#1A1A1A] shrink-0"
+                            />
+                            {pad(h)}:00
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                    <button type="submit" disabled={bulkApplying}
-                      className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
-                      {bulkApplying ? "Dodajem termine…" : `Primijeni na ${selectedDays.size} ${selectedDays.size === 1 ? "dan" : "dana"}`}
-                    </button>
-                  </form>
-                )}
+                  {/* Max spots */}
+                  <div>
+                    <label className={labelClass}>Maks. mjesta po terminu</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      required
+                      value={bulkMaxSpots}
+                      onChange={e => setBulkMaxSpots(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {bulkError   && <p className="text-xs text-red-500">{bulkError}</p>}
+                  {bulkSuccess && <p className="text-xs text-emerald-600">{bulkSuccess}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={bulkApplying || bulkCheckedHours.size === 0}
+                    className="w-full py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors"
+                  >
+                    {bulkApplying ? "Dodajem termine…" : "Dodaj termine"}
+                  </button>
+                </form>
               </div>
-
             </div>
 
             {/* Right col: single slot form + slot list */}
             <div className="space-y-6">
 
-              {/* Single slot form — completely separate from bulk form in left col */}
+              {/* Single slot form — completely separate from bulk form */}
               <div className="bg-white border border-[#E2DDD6] p-5">
                 <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560] mb-4">Dodaj jedan termin</h3>
                 <form onSubmit={addSlot} className="space-y-4">
