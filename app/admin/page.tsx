@@ -106,6 +106,7 @@ export default function AdminPage() {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [deletingSlot, setDeletingSlot] = useState<number | null>(null);
   const [savingSlot, setSavingSlot] = useState<number | null>(null);
+  const [deletingDay, setDeletingDay] = useState<string | null>(null);
 
   // Password change
   const [currentPwd, setCurrentPwd] = useState("");
@@ -321,6 +322,21 @@ export default function AdminPage() {
       alert("Greška pri brisanju termina. Pokušajte ponovo.");
     } finally {
       setDeletingSlot(null);
+    }
+  }
+
+  async function deleteDaySlots(dateStr: string, daySlots: SlotEntry[], dayLabel: string) {
+    if (!confirm(`Obrisati sve termine za ${dayLabel}?`)) return;
+    setDeletingDay(dateStr);
+    try {
+      await Promise.all(daySlots.map(s => fetch(`/api/admin/availability/${s.id}`, { method: "DELETE" })));
+      setAvailSlots(prev => prev.filter(s => s.date !== dateStr));
+      setExpandedDays(prev => { const n = new Set(prev); n.delete(dateStr); return n; });
+    } catch {
+      alert("Greška pri brisanju. Pokušajte ponovo.");
+      await fetchSlots();
+    } finally {
+      setDeletingDay(null);
     }
   }
 
@@ -680,13 +696,14 @@ export default function AdminPage() {
 
                     return (
                       <div key={dateStr} className="border border-[#E2DDD6] overflow-hidden bg-white">
+                        <div className="flex items-center">
                         <button type="button"
                           onClick={() => {
                             if (!hasSlots) return;
                             setExpandedDays(prev => { const n = new Set(prev); n.has(dateStr) ? n.delete(dateStr) : n.add(dateStr); return n; });
                           }}
                           className={[
-                            "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                            "flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors",
                             hasSlots ? "hover:bg-[#FAFAF8] cursor-pointer" : "cursor-default",
                           ].join(" ")}>
                           <span className={`text-sm font-medium w-28 shrink-0 ${isPast ? "text-[#C8C0B8]" : "text-[#1A1A1A]"}`}>
@@ -708,6 +725,20 @@ export default function AdminPage() {
                             <span className="text-[10px] text-[#D0CAC3]">—</span>
                           )}
                         </button>
+                        {hasSlots && (
+                          <button type="button"
+                            onClick={() => deleteDaySlots(dateStr, slots, `${DAYS_FULL[i]} ${d}.${m}.`)}
+                            disabled={deletingDay === dateStr}
+                            className="shrink-0 text-[#C8C0B8] hover:text-red-400 disabled:opacity-40 transition-colors p-1.5 pr-3">
+                            {deletingDay === dateStr
+                              ? <div className="w-3.5 h-3.5 border border-red-300 border-t-transparent rounded-full animate-spin" />
+                              : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            }
+                          </button>
+                        )}
+                        </div>
 
                         {isOpen && hasSlots && (
                           <div className="border-t border-[#E2DDD6] divide-y divide-[#E2DDD6]">
