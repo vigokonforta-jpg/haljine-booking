@@ -200,6 +200,7 @@ export default function BookingPage() {
     if (!daySlots || daySlots.every(s => s.spotsLeft <= 0)) return;
     setSelectedDate(dateStr);
     setSelectedSlot(null);
+    setTimeout(() => document.getElementById("termini")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
   function pickSlot(slot: Slot) {
@@ -611,7 +612,7 @@ export default function BookingPage() {
 
         {/* Time slots */}
         {selectedDate && (
-          <div className="bg-white border border-[#E2DDD6]">
+          <div id="termini" className="bg-white border border-[#E2DDD6]">
             <div className="px-6 py-4 border-b border-[#E2DDD6]">
               <p
                 className="text-[10px] tracking-[0.2em] uppercase text-[#A09890]"
