@@ -597,32 +597,6 @@ export default function BookingPage() {
         <Divider />
       </header>
 
-      {/* ── Custom instructions (admin-editable) ──────── */}
-      {instructions.trim() && (
-        <section className="px-4 max-w-lg mx-auto w-full mb-2">
-          <div
-            className="border border-[#E2DDD6] px-6 py-5 space-y-1"
-            style={{ backgroundColor: "#F5F0EB" }}
-          >
-            <p
-              className="text-[10px] tracking-[0.2em] uppercase text-[#A09890] mb-3"
-              style={{ fontFamily: "var(--font-inter), sans-serif" }}
-            >
-              Napomena
-            </p>
-            {instructions.split("\n").filter(l => l.trim()).map((line, i) => (
-              <p
-                key={i}
-                className="text-sm text-[#6B6560] leading-relaxed"
-                style={{ fontFamily: "var(--font-inter), sans-serif" }}
-              >
-                — {line.trim()}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* ── Calendar section ──────────────────────────── */}
       <section className="flex-1 px-4 pb-12 max-w-lg mx-auto w-full space-y-6 mt-4">
         {/* Month 1 */}
@@ -684,6 +658,30 @@ export default function BookingPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Custom instructions (admin-editable) ──────── */}
+        {instructions.trim() && (
+          <div
+            className="border border-[#E2DDD6] px-6 py-5 space-y-1"
+            style={{ backgroundColor: "#F5F0EB" }}
+          >
+            <p
+              className="text-[10px] tracking-[0.2em] uppercase text-[#A09890] mb-3"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            >
+              Napomena
+            </p>
+            {instructions.split("\n").filter(l => l.trim()).map((line, i) => (
+              <p
+                key={i}
+                className="text-sm text-[#6B6560] leading-relaxed"
+                style={{ fontFamily: "var(--font-inter), sans-serif" }}
+              >
+                — {line.trim()}
+              </p>
+            ))}
           </div>
         )}
 
