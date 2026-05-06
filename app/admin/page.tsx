@@ -252,7 +252,7 @@ export default function AdminPage() {
         next.delete(i);
       } else {
         next.add(i);
-        setDayConfigs(c => ({ ...c, [i]: c[i] ?? { from: "09:00", to: "17:00", maxSpots: "3" } }));
+        setDayConfigs(c => ({ ...c, [i]: c[i] ?? { from: "9", to: "17", maxSpots: "3" } }));
       }
       return next;
     });
@@ -261,7 +261,7 @@ export default function AdminPage() {
   function updateDayConfig(i: number, field: keyof DayConfig, value: string) {
     setDayConfigs(c => ({
       ...c,
-      [i]: { ...(c[i] ?? { from: "09:00", to: "17:00", maxSpots: "3" }), [field]: value },
+      [i]: { ...(c[i] ?? { from: "9", to: "17", maxSpots: "3" }), [field]: value },
     }));
   }
 
@@ -273,9 +273,9 @@ export default function AdminPage() {
     const slots: { date: string; startHour: number; maxSpots: number }[] = [];
 
     for (const i of Array.from(checkedDays).sort((a, b) => a - b)) {
-      const config = dayConfigs[i] ?? { from: "09:00", to: "17:00", maxSpots: "3" };
-      const from = parseInt(config.from.split(":")[0]);
-      const to = parseInt(config.to.split(":")[0]);
+      const config = dayConfigs[i] ?? { from: "9", to: "17", maxSpots: "3" };
+      const from = parseInt(config.from);
+      const to = parseInt(config.to);
       const maxSpots = parseInt(config.maxSpots);
       if (isNaN(from) || isNaN(to) || from >= to || isNaN(maxSpots)) continue;
       for (let h = from; h < to; h++) {
@@ -625,7 +625,7 @@ export default function AdminPage() {
                     {weekDates.map((dateStr, i) => {
                       const isPast = dateStr < todayStr;
                       const isChecked = checkedDays.has(i);
-                      const config = dayConfigs[i] ?? { from: "09:00", to: "17:00", maxSpots: "3" };
+                      const config = dayConfigs[i] ?? { from: "9", to: "17", maxSpots: "3" };
                       const [, m, d] = dateStr.split("-").map(Number);
                       return (
                         <div key={dateStr}>
@@ -643,15 +643,23 @@ export default function AdminPage() {
                             <div className="flex items-center gap-4 px-5 pb-3 pt-0.5">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] uppercase tracking-wider text-[#A09890] w-4">Od</span>
-                                <input type="time" step="3600" value={config.from}
+                                <select value={config.from}
                                   onChange={e => updateDayConfig(i, "from", e.target.value)}
-                                  className="w-20 border border-[#E2DDD6] px-2 py-1.5 text-sm text-[#1A1A1A] text-center focus:outline-none focus:border-[#1A1A1A] transition-colors" />
+                                  className="border border-[#E2DDD6] px-2 py-1.5 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] transition-colors bg-white">
+                                  {Array.from({ length: 24 }, (_, h) => (
+                                    <option key={h} value={String(h)}>{pad(h)}:00</option>
+                                  ))}
+                                </select>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] uppercase tracking-wider text-[#A09890] w-4">Do</span>
-                                <input type="time" step="3600" value={config.to}
+                                <select value={config.to}
                                   onChange={e => updateDayConfig(i, "to", e.target.value)}
-                                  className="w-20 border border-[#E2DDD6] px-2 py-1.5 text-sm text-[#1A1A1A] text-center focus:outline-none focus:border-[#1A1A1A] transition-colors" />
+                                  className="border border-[#E2DDD6] px-2 py-1.5 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] transition-colors bg-white">
+                                  {Array.from({ length: 24 }, (_, h) => (
+                                    <option key={h} value={String(h)}>{pad(h)}:00</option>
+                                  ))}
+                                </select>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] uppercase tracking-wider text-[#A09890] shrink-0">Mj.</span>
