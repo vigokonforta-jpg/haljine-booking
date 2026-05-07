@@ -791,6 +791,24 @@ export default function BookingPage() {
             <div className="flex-1 h-px bg-[#E2DDD6]" />
           </div>
 
+          <div
+            className="border border-[#E2DDD6] px-6 py-5 space-y-1"
+            style={{ backgroundColor: "#F5F0EB" }}
+          >
+            <p
+              className="text-[10px] tracking-[0.2em] uppercase text-[#A09890] mb-3"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            >
+              Napomena
+            </p>
+            <p className="text-sm text-[#6B6560] leading-relaxed" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+              — Termin je moguće otkazati najkasnije 24 sata prije dolaska.
+            </p>
+            <p className="text-sm text-[#6B6560] leading-relaxed" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+              — Nakon tog roka otkazivanje nije moguće.
+            </p>
+          </div>
+
           <form onSubmit={searchMyBookings} className="flex gap-2">
             <input
               type="email"
@@ -851,10 +869,10 @@ export default function BookingPage() {
                         </button>
                       ) : (
                         <span
-                          className="shrink-0 text-[10px] text-[#C8C0B8] tracking-wide"
+                          className="shrink-0 text-[10px] text-[#C8C0B8] tracking-wide text-right"
                           style={{ fontFamily: "var(--font-inter), sans-serif" }}
                         >
-                          &lt; 24h
+                          Nije moguće<br />otkazati
                         </span>
                       )}
                     </div>
