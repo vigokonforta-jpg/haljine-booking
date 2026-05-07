@@ -5,14 +5,17 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAuthenticated())) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const bookingId = Number(id);
-
   try {
+    if (!(await isAuthenticated())) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const bookingId = Number(id);
+    if (!Number.isInteger(bookingId)) {
+      return Response.json({ error: "Invalid booking id" }, { status: 400 });
+    }
+
     const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (!booking) {
       return Response.json({ error: "Booking not found" }, { status: 404 });

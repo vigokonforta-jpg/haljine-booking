@@ -142,6 +142,7 @@ export default function BookingPage() {
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [people, setPeople] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(true);
   const [error, setError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [instructions, setInstructions] = useState<string>("");
@@ -159,12 +160,20 @@ export default function BookingPage() {
     }
   }, []);
 
-  const refreshSlots = useCallback(() => {
-    fetchSlots(viewYear, viewMonth).then(setSlots);
-    fetchSlots(nextYear, nextMonth).then(setNextSlots);
+  const refreshSlots = useCallback(async () => {
+    setSlotsLoading(true);
+    const [currentMonthSlots, followingMonthSlots] = await Promise.all([
+      fetchSlots(viewYear, viewMonth),
+      fetchSlots(nextYear, nextMonth),
+    ]);
+    setSlots(currentMonthSlots);
+    setNextSlots(followingMonthSlots);
+    setSlotsLoading(false);
   }, [fetchSlots, viewYear, viewMonth, nextYear, nextMonth]);
 
-  useEffect(() => { refreshSlots(); }, [refreshSlots]);
+  useEffect(() => {
+    void Promise.resolve().then(refreshSlots);
+  }, [refreshSlots]);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -602,12 +611,20 @@ export default function BookingPage() {
       <section className="flex-1 px-4 pb-12 max-w-lg mx-auto w-full space-y-6 mt-4">
         {/* Month 1 */}
         <div className="bg-white border border-[#E2DDD6] p-6">
-          {renderMonth(viewYear, viewMonth, true)}
+          {slotsLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-5 h-5 border border-[#1A1A1A] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : renderMonth(viewYear, viewMonth, true)}
         </div>
 
         {/* Month 2 */}
         <div className="bg-white border border-[#E2DDD6] p-6">
-          {renderMonth(nextYear, nextMonth, false)}
+          {slotsLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-5 h-5 border border-[#1A1A1A] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : renderMonth(nextYear, nextMonth, false)}
         </div>
 
         {/* Time slots */}

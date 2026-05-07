@@ -1,16 +1,16 @@
-import prisma from "@/lib/prisma";
+import { getSiteSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/settings — public, returns current site instructions
+// GET /api/settings - public, returns current site instructions
 export async function GET() {
-  const settings = await prisma.siteSettings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1, instructions: "" },
-  });
-  return Response.json(
-    { instructions: settings.instructions },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  try {
+    const settings = await getSiteSettings();
+    return Response.json(
+      { instructions: settings.instructions },
+      { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
+    );
+  } catch {
+    return Response.json({ error: "Failed to fetch settings" }, { status: 500 });
+  }
 }

@@ -8,11 +8,12 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAuthenticated())) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const { id } = await params;
   try {
+    if (!(await isAuthenticated())) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
     await prisma.availabilitySlot.delete({ where: { id: Number(id) } });
     return Response.json({ ok: true });
   } catch (err) {
@@ -30,23 +31,28 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAuthenticated())) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const { id } = await params;
   try {
+    if (!(await isAuthenticated())) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
     const { maxSpots } = await request.json();
     if (typeof maxSpots !== "number" || maxSpots < 1) {
       return Response.json({ error: "maxSpots mora biti pozitivan broj" }, { status: 400 });
     }
+
     const slot = await prisma.availabilitySlot.update({
       where: { id: Number(id) },
       data: { maxSpots },
-      include: { _count: { select: { bookings: true } } },
+      include: { bookings: { select: { people: true } } },
     });
     return Response.json({
-      id: slot.id, date: slot.date, startHour: slot.startHour,
-      maxSpots: slot.maxSpots, booked: slot._count.bookings,
+      id: slot.id,
+      date: slot.date,
+      startHour: slot.startHour,
+      maxSpots: slot.maxSpots,
+      booked: slot.bookings.reduce((sum, booking) => sum + booking.people, 0),
     });
   } catch (err) {
     const isNotFound =

@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { checkPassword, createSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const { password } = await request.json();
-  if (!(await checkPassword(password))) {
-    return Response.json({ error: "Invalid password" }, { status: 401 });
+  try {
+    const { password } = await request.json();
+    if (typeof password !== "string" || !(await checkPassword(password))) {
+      return Response.json({ error: "Invalid password" }, { status: 401 });
+    }
+
+    await createSession();
+    return Response.json({ ok: true });
+  } catch {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
-  await createSession();
-  return Response.json({ ok: true });
 }

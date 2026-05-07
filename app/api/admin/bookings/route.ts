@@ -3,13 +3,13 @@ import { isAuthenticated } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/bookings — list all upcoming bookings
+// GET /api/admin/bookings - list all upcoming bookings
 export async function GET() {
-  if (!(await isAuthenticated())) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    if (!(await isAuthenticated())) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const bookings = await prisma.booking.findMany({
       where: { availabilitySlot: { date: { gte: today } } },
@@ -21,15 +21,15 @@ export async function GET() {
     });
 
     return Response.json(
-      bookings.map((b) => ({
-        id: b.id,
-        name: b.name,
-        email: b.email,
-        phone: b.phone,
-        people: b.people,
-        date: b.availabilitySlot.date,
-        startHour: b.availabilitySlot.startHour,
-        createdAt: b.createdAt,
+      bookings.map((booking) => ({
+        id: booking.id,
+        name: booking.name,
+        email: booking.email,
+        phone: booking.phone,
+        people: booking.people,
+        date: booking.availabilitySlot.date,
+        startHour: booking.availabilitySlot.startHour,
+        createdAt: booking.createdAt,
       }))
     );
   } catch {

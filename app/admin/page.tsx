@@ -124,6 +124,7 @@ export default function AdminPage() {
   const [deletingBooking, setDeletingBooking] = useState<number | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [bookingsError, setBookingsError] = useState("");
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -143,11 +144,14 @@ export default function AdminPage() {
   }, []);
 
   const fetchSlots = useCallback(async () => {
+    setAvailabilityLoading(true);
     try {
       const res = await fetch("/api/admin/availability");
       if (res.ok) setAvailSlots(await res.json());
     } catch {
       // silent — slots will just stay stale
+    } finally {
+      setAvailabilityLoading(false);
     }
   }, []);
 
@@ -494,7 +498,12 @@ export default function AdminPage() {
           const weekKeys = Object.keys(byWeek).sort();
 
           function toggleDate(date: string) {
-            setExpandedDates(prev => { const n = new Set(prev); n.has(date) ? n.delete(date) : n.add(date); return n; });
+            setExpandedDates(prev => {
+              const n = new Set(prev);
+              if (n.has(date)) n.delete(date);
+              else n.add(date);
+              return n;
+            });
           }
 
           const chevron = (open: boolean) => (
@@ -691,10 +700,15 @@ export default function AdminPage() {
                   <h3 className="text-[10px] tracking-[0.2em] uppercase text-[#6B6560]">
                     Termini — {formatWeekLabel(weekOffset)}
                   </h3>
-                  <button onClick={fetchSlots} className="text-xs text-[#A09890] hover:text-[#1A1A1A] transition-colors">↻</button>
+                  <button onClick={fetchSlots} disabled={availabilityLoading} className="text-xs text-[#A09890] hover:text-[#1A1A1A] disabled:opacity-40 transition-colors">↻</button>
                 </div>
 
                 <div className="space-y-1.5">
+                  {availabilityLoading && (
+                    <div className="border border-[#E2DDD6] bg-white px-4 py-5 flex items-center justify-center">
+                      <div className="w-4 h-4 border border-[#1A1A1A] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
                   {weekDates.map((dateStr, i) => {
                     const slots = (slotsByDate[dateStr] ?? []).slice().sort((a, b) => a.startHour - b.startHour);
                     const isOpen = expandedDays.has(dateStr);
@@ -708,7 +722,12 @@ export default function AdminPage() {
                         <button type="button"
                           onClick={() => {
                             if (!hasSlots) return;
-                            setExpandedDays(prev => { const n = new Set(prev); n.has(dateStr) ? n.delete(dateStr) : n.add(dateStr); return n; });
+                            setExpandedDays(prev => {
+                              const n = new Set(prev);
+                              if (n.has(dateStr)) n.delete(dateStr);
+                              else n.add(dateStr);
+                              return n;
+                            });
                           }}
                           className={[
                             "flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors",
