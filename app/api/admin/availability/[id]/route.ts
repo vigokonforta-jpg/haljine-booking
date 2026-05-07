@@ -12,8 +12,18 @@ export async function DELETE(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  await prisma.availabilitySlot.delete({ where: { id: Number(id) } });
-  return Response.json({ ok: true });
+  try {
+    await prisma.availabilitySlot.delete({ where: { id: Number(id) } });
+    return Response.json({ ok: true });
+  } catch (err) {
+    const isNotFound =
+      typeof err === "object" && err !== null && "code" in err &&
+      (err as { code: unknown }).code === "P2025";
+    if (isNotFound) {
+      return Response.json({ error: "Slot not found" }, { status: 404 });
+    }
+    return Response.json({ error: "Failed to delete slot" }, { status: 500 });
+  }
 }
 
 export async function PATCH(
@@ -24,17 +34,27 @@ export async function PATCH(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const { maxSpots } = await request.json();
-  if (typeof maxSpots !== "number" || maxSpots < 1) {
-    return Response.json({ error: "maxSpots mora biti pozitivan broj" }, { status: 400 });
+  try {
+    const { maxSpots } = await request.json();
+    if (typeof maxSpots !== "number" || maxSpots < 1) {
+      return Response.json({ error: "maxSpots mora biti pozitivan broj" }, { status: 400 });
+    }
+    const slot = await prisma.availabilitySlot.update({
+      where: { id: Number(id) },
+      data: { maxSpots },
+      include: { _count: { select: { bookings: true } } },
+    });
+    return Response.json({
+      id: slot.id, date: slot.date, startHour: slot.startHour,
+      maxSpots: slot.maxSpots, booked: slot._count.bookings,
+    });
+  } catch (err) {
+    const isNotFound =
+      typeof err === "object" && err !== null && "code" in err &&
+      (err as { code: unknown }).code === "P2025";
+    if (isNotFound) {
+      return Response.json({ error: "Slot not found" }, { status: 404 });
+    }
+    return Response.json({ error: "Failed to update slot" }, { status: 500 });
   }
-  const slot = await prisma.availabilitySlot.update({
-    where: { id: Number(id) },
-    data: { maxSpots },
-    include: { _count: { select: { bookings: true } } },
-  });
-  return Response.json({
-    id: slot.id, date: slot.date, startHour: slot.startHour,
-    maxSpots: slot.maxSpots, booked: slot._count.bookings,
-  });
 }

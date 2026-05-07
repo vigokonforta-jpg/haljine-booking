@@ -12,8 +12,12 @@ export async function DELETE(
   const { id } = await params;
   const bookingId = Number(id);
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (booking) {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) {
+      return Response.json({ error: "Booking not found" }, { status: 404 });
+    }
+
     await prisma.$transaction([
       prisma.bookingLimit.upsert({
         where: { email: booking.email },
@@ -22,7 +26,9 @@ export async function DELETE(
       }),
       prisma.booking.delete({ where: { id: bookingId } }),
     ]);
-  }
 
-  return Response.json({ ok: true });
+    return Response.json({ ok: true });
+  } catch {
+    return Response.json({ error: "Failed to delete booking" }, { status: 500 });
+  }
 }

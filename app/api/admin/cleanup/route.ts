@@ -17,6 +17,10 @@ export async function POST() {
   if (!(await isAuthenticated())) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const deleted = await runCleanup();
-  return Response.json({ deleted });
+  try {
+    const deleted = await runCleanup();
+    return Response.json({ deleted });
+  } catch {
+    return Response.json({ error: "Failed to run cleanup" }, { status: 500 });
+  }
 }

@@ -6,18 +6,18 @@ import { runCleanup } from "@/app/api/admin/cleanup/route";
 // POST /api/send-reminders
 // Call this daily (e.g. via cron) to send 24h-before reminders
 export async function POST(request: Request) {
-  // Require either admin auth or a secret token
+  // Require either admin auth or a valid secret token.
+  // If REMINDER_SECRET is not set, only admin session auth is accepted.
   const secret = request.headers.get("x-reminder-secret");
+  const reminderSecret = process.env.REMINDER_SECRET;
   const isAdmin = await isAuthenticated();
-  if (!isAdmin && secret !== process.env.REMINDER_SECRET) {
+  if (!isAdmin && (!reminderSecret || secret !== reminderSecret)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const today = new Date().toISOString().slice(0, 10);
 
   // Find all upcoming bookings that haven't been reminded yet.
-  // Using gte:today so manual triggers from the admin panel catch all upcoming slots,
-  // not just those exactly 24h away.
   const bookings = await prisma.booking.findMany({
     where: {
       reminderSent: false,
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     include: { availabilitySlot: true },
   });
 
-  let sent = 0;
+  // Send emails, collect IDs of successful sends
+  const sentIds: number[] = [];
   for (const booking of bookings) {
     try {
       await sendReminderEmail(
@@ -35,18 +36,22 @@ export async function POST(request: Request) {
         booking.availabilitySlot.date,
         booking.availabilitySlot.startHour
       );
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { reminderSent: true },
-      });
-      sent++;
+      sentIds.push(booking.id);
     } catch {
       // continue sending others even if one fails
     }
   }
 
+  // Batch update all successfully sent bookings in a single query
+  if (sentIds.length > 0) {
+    await prisma.booking.updateMany({
+      where: { id: { in: sentIds } },
+      data: { reminderSent: true },
+    });
+  }
+
   // Run daily cleanup of slots/bookings older than 30 days
   const cleaned = await runCleanup().catch(() => 0);
 
-  return Response.json({ sent, cleaned });
+  return Response.json({ sent: sentIds.length, cleaned });
 }
