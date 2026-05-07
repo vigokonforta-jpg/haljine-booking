@@ -10,6 +10,14 @@ type Slot = {
   spotsLeft: number;
 };
 
+type MyBooking = {
+  id: number;
+  date: string;
+  startHour: number;
+  people: number;
+  createdAt: string;
+};
+
 type Step = "calendar" | "form" | "done";
 
 const DAYS = ["Ned", "Pon", "Uto", "Sri", "Čet", "Pet", "Sub"];
@@ -147,6 +155,13 @@ export default function BookingPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [instructions, setInstructions] = useState<string>("");
 
+  // Moji termini
+  const [myEmail, setMyEmail] = useState("");
+  const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
+  const [myBookingsLoading, setMyBookingsLoading] = useState(false);
+  const [myBookingsSearched, setMyBookingsSearched] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+
   const nextMonth = viewMonth === 12 ? 1 : viewMonth + 1;
   const nextYear  = viewMonth === 12 ? viewYear + 1 : viewYear;
 
@@ -180,6 +195,11 @@ export default function BookingPage() {
       .then(r => { if (!r.ok) throw new Error("settings fetch failed"); return r.json(); })
       .then(d => setInstructions(d.instructions ?? ""))
       .catch(() => setInstructions(""));
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("noema_email");
+    if (saved) setMyEmail(saved);
   }, []);
 
   const slotsByDate: Record<string, Slot[]> = {};
@@ -240,6 +260,7 @@ export default function BookingPage() {
       } else {
         const data = await res.json();
         setEmailSent(data.emailSent ?? false);
+        localStorage.setItem("noema_email", form.email);
         setStep("done");
       }
     } catch {
@@ -257,6 +278,49 @@ export default function BookingPage() {
     setPeople(1);
     setEmailSent(false);
     refreshSlots();
+  }
+
+  async function searchMyBookings(e: React.FormEvent) {
+    e.preventDefault();
+    if (!myEmail.trim()) return;
+    setMyBookingsLoading(true);
+    setMyBookingsSearched(false);
+    try {
+      const res = await fetch(`/api/bookings/my?email=${encodeURIComponent(myEmail.trim())}`);
+      setMyBookings(res.ok ? await res.json() : []);
+    } catch {
+      setMyBookings([]);
+    } finally {
+      setMyBookingsLoading(false);
+      setMyBookingsSearched(true);
+    }
+  }
+
+  async function cancelMyBooking(id: number, date: string, startHour: number) {
+    const [, m, d] = date.split("-").map(Number);
+    if (!confirm(`Sigurno želite otkazati termin ${d}.${m}. u ${pad(startHour)}:00?`)) return;
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/bookings/${id}?email=${encodeURIComponent(myEmail.trim())}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setMyBookings(prev => prev.filter(b => b.id !== id));
+        refreshSlots();
+      } else {
+        const data = await res.json();
+        alert(data.error ?? "Greška pri otkazivanju. Pokušajte ponovo.");
+      }
+    } catch {
+      alert("Greška pri otkazivanju. Provjerite vezu.");
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  function canCancel(date: string, startHour: number): boolean {
+    const slotTime = new Date(`${date}T${String(startHour).padStart(2, "0")}:00:00`);
+    return slotTime.getTime() - Date.now() > 24 * 60 * 60 * 1000;
   }
 
   function renderCalendarCells(year: number, month: number) {
@@ -711,6 +775,95 @@ export default function BookingPage() {
             Odaberite dostupan datum za pregled termina
           </p>
         )}
+      </section>
+
+      {/* ── Moji termini ──────────────────────────────── */}
+      <section className="px-4 pb-16 max-w-lg mx-auto w-full">
+        <div className="space-y-5">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-[#E2DDD6]" />
+            <h2
+              className="text-xs tracking-[0.25em] uppercase text-[#A09890] shrink-0"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            >
+              Moji termini
+            </h2>
+            <div className="flex-1 h-px bg-[#E2DDD6]" />
+          </div>
+
+          <form onSubmit={searchMyBookings} className="flex gap-2">
+            <input
+              type="email"
+              required
+              value={myEmail}
+              onChange={e => { setMyEmail(e.target.value); setMyBookingsSearched(false); }}
+              placeholder="Vaša email adresa"
+              className="flex-1 border border-[#E2DDD6] bg-white px-4 py-2.5 text-sm text-[#1A1A1A] placeholder-[#C8C0B8] focus:outline-none focus:border-[#1A1A1A] transition-colors"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            />
+            <button
+              type="submit"
+              disabled={myBookingsLoading}
+              className="px-5 py-2.5 bg-[#1A1A1A] text-white text-xs tracking-[0.15em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors shrink-0"
+              style={{ fontFamily: "var(--font-inter), sans-serif" }}
+            >
+              {myBookingsLoading ? "…" : "Pretraži"}
+            </button>
+          </form>
+
+          {myBookingsSearched && (
+            myBookings.length === 0 ? (
+              <p
+                className="text-sm text-[#C8C0B8] text-center py-4"
+                style={{ fontFamily: "var(--font-inter), sans-serif" }}
+              >
+                Nemate aktivnih rezervacija.
+              </p>
+            ) : (
+              <div className="border border-[#E2DDD6] bg-white divide-y divide-[#E2DDD6]">
+                {myBookings.map(b => {
+                  const cancellable = canCancel(b.date, b.startHour);
+                  return (
+                    <div key={b.id} className="flex items-center gap-4 px-5 py-4">
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-base font-light text-[#1A1A1A]"
+                          style={{ fontFamily: "var(--font-cormorant), serif" }}
+                        >
+                          {formatDate(b.date)}
+                        </p>
+                        <p
+                          className="text-xs text-[#A09890] mt-0.5"
+                          style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                        >
+                          {formatHour(b.startHour)} · {b.people === 2 ? "2 osobe" : "1 osoba"}
+                        </p>
+                      </div>
+                      {cancellable ? (
+                        <button
+                          type="button"
+                          onClick={() => cancelMyBooking(b.id, b.date, b.startHour)}
+                          disabled={cancellingId === b.id}
+                          className="shrink-0 text-xs tracking-[0.1em] uppercase border border-[#E2DDD6] px-3 py-1.5 text-[#A09890] hover:border-red-300 hover:text-red-400 disabled:opacity-40 transition-colors"
+                          style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                        >
+                          {cancellingId === b.id ? "…" : "Otkaži"}
+                        </button>
+                      ) : (
+                        <span
+                          className="shrink-0 text-[10px] text-[#C8C0B8] tracking-wide"
+                          style={{ fontFamily: "var(--font-inter), sans-serif" }}
+                        >
+                          &lt; 24h
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </div>
       </section>
 
       <Footer />
