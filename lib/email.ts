@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = "NOEMA <onboarding@resend.dev>";
+const FROM = "NOEMA <info@noemabooking.com>";
 
 const BRAND_CSS = `
   body { margin:0; padding:0; background:#FAFAF8; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
@@ -32,7 +32,8 @@ export async function sendConfirmationEmail(
   to: string,
   name: string,
   date: string,
-  hour: number
+  hour: number,
+  people: number = 1
 ): Promise<boolean> {
   const slot = formatSlot(date, hour);
   const { error } = await resend.emails.send({
@@ -46,18 +47,26 @@ export async function sendConfirmationEmail(
           <p class="tagline">Croatian Fashion Rental Closet</p>
         </div>
         <div class="body">
-          <p class="greeting">Poštovani/a ${name},</p>
-          <p class="note">Vaša rezervacija je uspješno potvrđena. Veselimo se vašem dolasku.</p>
+          <p class="greeting">Drage naše,</p>
+          <p class="note">Dobrodošle u Noema studio za najam odjeće. Zahvaljujemo na rezervaciji termina i veselimo se vašem dolasku.</p>
           <hr class="divider" />
           <p class="label">Datum</p>
           <p class="value">${slot.date}</p>
           <p class="label">Vrijeme</p>
           <p class="value">${slot.time}</p>
+          <p class="label">Broj osoba</p>
+          <p class="value">${people === 2 ? "2 osobe" : "1 osoba"}</p>
           <hr class="divider" />
-          <p class="note">Za promjenu ili otkazivanje termina, kontaktirajte nas na Instagram ili putem e-maila.</p>
+          <p class="label">Informacije o terminu</p>
+          <p class="note" style="margin-bottom:8px;">— Termin se naplaćuje <strong>8,00&nbsp;€</strong></p>
+          <p class="note" style="margin-bottom:8px;">— Trajanje termina: <strong>45 minuta</strong></p>
+          <p class="note" style="margin-bottom:8px;">— Adresa: <strong>Nova Ves 50, Zagreb</strong></p>
+          <hr class="divider" />
+          <p class="label">Otkazivanje</p>
+          <p class="note">Termin je moguće otkazati najkasnije <strong>24 sata prije dolaska</strong>. Nakon tog roka otkazivanje nije moguće.</p>
         </div>
         <div class="footer">
-          <p class="footer-text">NOEMA &mdash; Zagreb &mdash; @noema.zagreb</p>
+          <p class="footer-text">NOEMA &mdash; Nova Ves 50, Zagreb &mdash; info@noemabooking.com</p>
         </div>
       </div>
     </body></html>`,

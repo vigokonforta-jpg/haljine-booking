@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     let emailSent = false;
     try {
-      await sendConfirmationEmail(email, name, booking.availabilitySlot.date, booking.availabilitySlot.startHour);
+      await sendConfirmationEmail(email, name, booking.availabilitySlot.date, booking.availabilitySlot.startHour, booking.people);
       emailSent = true;
     } catch {
       // Don't fail the booking if email fails.
