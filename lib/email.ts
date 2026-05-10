@@ -3,6 +3,7 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = "NOEMA <info@noemabooking.com>";
+const REPLY_TO = "noema.booking1@gmail.com";
 
 const BRAND_CSS = `
   body { margin:0; padding:0; background:#FAFAF8; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
@@ -39,6 +40,7 @@ export async function sendConfirmationEmail(
   const { error } = await resend.emails.send({
     from: FROM,
     to,
+    replyTo: REPLY_TO,
     subject: "Potvrda rezervacije — NOEMA",
     html: `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${BRAND_CSS}</style></head><body>
       <div class="wrap">
@@ -85,6 +87,7 @@ export async function sendReminderEmail(
   const { error } = await resend.emails.send({
     from: FROM,
     to,
+    replyTo: REPLY_TO,
     subject: "Podsjetnik: Vaš termin je sutra — NOEMA",
     html: `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${BRAND_CSS}</style></head><body>
       <div class="wrap">
