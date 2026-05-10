@@ -13,7 +13,7 @@ export async function GET() {
         contactAddress: s.contactAddress,
         contactPhone: s.contactPhone,
       },
-      { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch {
     return Response.json({ error: "Failed to fetch settings" }, { status: 500 });

@@ -201,7 +201,7 @@ export default function BookingPage() {
   }, [refreshSlots]);
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings", { cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error("settings fetch failed"); return r.json(); })
       .then(d => {
         setInstructions(d.instructions ?? "");
