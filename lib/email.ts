@@ -66,6 +66,8 @@ export async function sendConfirmationEmail(
           <hr class="divider" />
           <p class="label">Otkazivanje</p>
           <p class="note">Termin je moguće otkazati najkasnije <strong>24 sata prije dolaska</strong>. Nakon tog roka otkazivanje nije moguće.</p>
+          <hr class="divider" />
+          <p class="note">Za sva pitanja kontaktirajte nas na: <strong>noema.booking1@gmail.com</strong></p>
         </div>
         <div class="footer">
           <p class="footer-text">NOEMA &mdash; Nova Ves 50, Zagreb &mdash; info@noemabooking.com</p>
@@ -105,6 +107,8 @@ export async function sendReminderEmail(
           <p class="value">${slot.time}</p>
           <hr class="divider" />
           <p class="note">Za promjenu ili otkazivanje termina, kontaktirajte nas što prije.</p>
+          <hr class="divider" />
+          <p class="note">Za sva pitanja kontaktirajte nas na: <strong>noema.booking1@gmail.com</strong></p>
         </div>
         <div class="footer">
           <p class="footer-text">NOEMA &mdash; Zagreb &mdash; @noema.zagreb</p>
