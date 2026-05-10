@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { isAuthenticated } from "@/lib/auth";
-import { getSiteSettings } from "@/lib/settings";
+import { getSiteSettings, DEFAULT_CONTACT } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +11,13 @@ export async function GET() {
     if (!(await isAuthenticated())) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const settings = await getSiteSettings();
-    return Response.json({ instructions: settings.instructions });
+    const s = await getSiteSettings();
+    return Response.json({
+      instructions: s.instructions,
+      contactEmail: s.contactEmail,
+      contactAddress: s.contactAddress,
+      contactPhone: s.contactPhone,
+    });
   } catch {
     return Response.json({ error: "Failed to fetch settings" }, { status: 500 });
   }
@@ -25,14 +29,29 @@ export async function PUT(request: NextRequest) {
     if (!(await isAuthenticated())) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const body = await request.json() as { instructions?: string };
-    const settings = await prisma.siteSettings.upsert({
+    const body = await request.json() as {
+      instructions?: string;
+      contactEmail?: string;
+      contactAddress?: string;
+      contactPhone?: string;
+    };
+    const data = {
+      instructions: body.instructions ?? "",
+      contactEmail: body.contactEmail ?? DEFAULT_CONTACT.contactEmail,
+      contactAddress: body.contactAddress ?? DEFAULT_CONTACT.contactAddress,
+      contactPhone: body.contactPhone ?? DEFAULT_CONTACT.contactPhone,
+    };
+    const s = await prisma.siteSettings.upsert({
       where: { id: 1 },
-      update: { instructions: body.instructions ?? "" },
-      create: { id: 1, instructions: body.instructions ?? "" },
+      update: data,
+      create: { id: 1, ...data },
     });
-    return Response.json({ instructions: settings.instructions });
+    return Response.json({
+      instructions: s.instructions,
+      contactEmail: s.contactEmail,
+      contactAddress: s.contactAddress,
+      contactPhone: s.contactPhone,
+    });
   } catch {
     return Response.json({ error: "Failed to save settings" }, { status: 500 });
   }

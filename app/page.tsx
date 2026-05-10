@@ -67,8 +67,15 @@ function Divider({ className = "" }: { className?: string }) {
   );
 }
 
+type SiteContact = { email: string; address: string; phone: string };
+const DEFAULT_CONTACT: SiteContact = {
+  email: "info@noemabooking.com",
+  address: "Nova Ves 50, Zagreb",
+  phone: "",
+};
+
 /* ── Site footer ──────────────────────────────────────── */
-function Footer() {
+function Footer({ contact = DEFAULT_CONTACT }: { contact?: SiteContact }) {
   return (
     <footer style={{ background: "var(--noema-cream)", borderTop: "1px solid var(--noema-border)" }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
@@ -93,13 +100,15 @@ function Footer() {
           <div className="space-y-3" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
             <p className="text-[10px] tracking-[0.2em] uppercase text-[#A09890]">Kontakt</p>
             <div className="space-y-1.5">
-              <p className="text-xs text-[#6B6560]">Nova Ves 50, Zagreb</p>
-              <p className="text-xs text-[#6B6560]">Croatia 10000</p>
+              <p className="text-xs text-[#6B6560]">{contact.address}</p>
+              {contact.phone && (
+                <p className="text-xs text-[#6B6560]">{contact.phone}</p>
+              )}
               <a
-                href="mailto:info@noema.hr"
+                href={`mailto:${contact.email}`}
                 className="block text-xs text-[#6B6560] hover:text-[#1A1A1A] transition-colors"
               >
-                info@noema.hr
+                {contact.email}
               </a>
             </div>
           </div>
@@ -154,6 +163,7 @@ export default function BookingPage() {
   const [error, setError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [instructions, setInstructions] = useState<string>("");
+  const [contact, setContact] = useState<SiteContact>(DEFAULT_CONTACT);
 
   // Moji termini
   const [myEmail, setMyEmail] = useState("");
@@ -193,7 +203,14 @@ export default function BookingPage() {
   useEffect(() => {
     fetch("/api/settings")
       .then(r => { if (!r.ok) throw new Error("settings fetch failed"); return r.json(); })
-      .then(d => setInstructions(d.instructions ?? ""))
+      .then(d => {
+        setInstructions(d.instructions ?? "");
+        setContact({
+          email: d.contactEmail ?? DEFAULT_CONTACT.email,
+          address: d.contactAddress ?? DEFAULT_CONTACT.address,
+          phone: d.contactPhone ?? DEFAULT_CONTACT.phone,
+        });
+      })
       .catch(() => setInstructions(""));
   }, []);
 
@@ -489,7 +506,7 @@ export default function BookingPage() {
             </div>
           </div>
         </main>
-        <Footer />
+        <Footer contact={contact} />
       </div>
     );
   }
@@ -610,7 +627,7 @@ export default function BookingPage() {
             </form>
           </div>
         </main>
-        <Footer />
+        <Footer contact={contact} />
       </div>
     );
   }

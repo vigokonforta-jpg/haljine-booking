@@ -122,9 +122,15 @@ export default function AdminPage() {
   // Loading / error states
   const [loginLoading, setLoginLoading] = useState(false);
   const [deletingBooking, setDeletingBooking] = useState<number | null>(null);
-  const [sendingReminders, setSendingReminders] = useState(false);
   const [bookingsError, setBookingsError] = useState("");
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+
+  // Contact settings
+  const [contactEmail, setContactEmail] = useState("info@noemabooking.com");
+  const [contactAddress, setContactAddress] = useState("Nova Ves 50, Zagreb");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactResult, setContactResult] = useState<{ ok?: boolean; msg: string } | null>(null);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -167,7 +173,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     void fetchSlots();
-    fetch("/api/admin/settings").then(r => r.json()).then(d => setInstructions(d.instructions ?? ""));
+    fetch("/api/admin/settings").then(r => r.json()).then(d => {
+      setInstructions(d.instructions ?? "");
+      setContactEmail(d.contactEmail ?? "info@noemabooking.com");
+      setContactAddress(d.contactAddress ?? "Nova Ves 50, Zagreb");
+      setContactPhone(d.contactPhone ?? "");
+    });
   }, [authed, fetchSlots]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -210,20 +221,6 @@ export default function AdminPage() {
       alert("Greška pri brisanju rezervacije. Pokušajte ponovo.");
     } finally {
       setDeletingBooking(null);
-    }
-  }
-
-  async function sendReminders() {
-    setSendingReminders(true);
-    try {
-      const res = await fetch("/api/send-reminders", { method: "POST" });
-      if (!res.ok) { alert("Greška pri slanju. Pokušajte se odjaviti i prijaviti ponovo."); return; }
-      const data = await res.json();
-      alert(data.sent > 0 ? `Poslano ${data.sent} podsjetnika.` : "Nema novih podsjetnika za slanje.");
-    } catch {
-      alert("Greška pri slanju podsjetnika. Provjerite vezu.");
-    } finally {
-      setSendingReminders(false);
     }
   }
 
@@ -366,6 +363,28 @@ export default function AdminPage() {
 
   // ── Postavke ──────────────────────────────────────
 
+  async function saveContact(e: React.FormEvent) {
+    e.preventDefault();
+    setContactSaving(true); setContactResult(null);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructions, contactEmail, contactAddress, contactPhone }),
+      });
+      if (res.ok) {
+        setContactResult({ ok: true, msg: "Kontakt podaci su spremljeni." });
+        setTimeout(() => setContactResult(null), 3000);
+      } else {
+        setContactResult({ msg: "Greška pri spremanju." });
+      }
+    } catch {
+      setContactResult({ msg: "Greška pri spremanju. Provjerite vezu." });
+    } finally {
+      setContactSaving(false);
+    }
+  }
+
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwdResult(null);
@@ -454,14 +473,11 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/" className="hidden sm:inline text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide whitespace-nowrap">← Klijentska stranica</Link>
-            <button onClick={sendReminders} disabled={sendingReminders} className="hidden sm:inline text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] disabled:opacity-40 transition-colors whitespace-nowrap">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
             <button onClick={logout} className="text-xs tracking-[0.1em] border border-[#E2DDD6] px-4 py-2 text-[#6B6560] hover:bg-[#F5F0EB] transition-colors">Odjava</button>
           </div>
         </div>
-        <div className="sm:hidden border-t border-[#E2DDD6] px-4 py-2 flex items-center gap-4">
+        <div className="sm:hidden border-t border-[#E2DDD6] px-4 py-2">
           <Link href="/" className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] transition-colors tracking-wide">← Klijentska stranica</Link>
-          <span className="text-[#E2DDD6] select-none">·</span>
-          <button onClick={sendReminders} disabled={sendingReminders} className="text-[11px] text-[#A09890] hover:text-[#1A1A1A] disabled:opacity-40 transition-colors tracking-wide">{sendingReminders ? "Šaljem…" : "Pošalji podsjetnike"}</button>
         </div>
       </header>
 
@@ -861,6 +877,40 @@ export default function AdminPage() {
         {/* ── Postavke ──────────────────────────────── */}
         {tab === "postavke" && (
           <div className="max-w-lg space-y-10">
+            <div>
+              <h2 className="text-xs tracking-[0.2em] uppercase text-[#6B6560] mb-6">Kontakt podaci</h2>
+              <form onSubmit={saveContact} className="bg-white border border-[#E2DDD6] p-5 space-y-4">
+                <div>
+                  <label className={labelClass}>Email adresa</label>
+                  <input type="email" value={contactEmail}
+                    onChange={e => setContactEmail(e.target.value)}
+                    className={inputClass} placeholder="info@noemabooking.com" />
+                </div>
+                <div>
+                  <label className={labelClass}>Adresa</label>
+                  <input type="text" value={contactAddress}
+                    onChange={e => setContactAddress(e.target.value)}
+                    className={inputClass} placeholder="Nova Ves 50, Zagreb" />
+                </div>
+                <div>
+                  <label className={labelClass}>Telefon (opcionalno)</label>
+                  <input type="text" value={contactPhone}
+                    onChange={e => setContactPhone(e.target.value)}
+                    className={inputClass} placeholder="+385 91 000 0000" />
+                </div>
+                <div className="flex items-center gap-4 pt-1">
+                  <button type="submit" disabled={contactSaving}
+                    className="px-8 py-3 bg-[#1A1A1A] text-white text-xs tracking-[0.2em] uppercase hover:bg-[#333] disabled:opacity-40 transition-colors">
+                    {contactSaving ? "Spremam…" : "Spremi kontakt"}
+                  </button>
+                  {contactResult && (
+                    <span className={`text-xs tracking-wide ${contactResult.ok ? "text-emerald-600" : "text-red-600"}`}>
+                      {contactResult.ok ? "✓ " : ""}{contactResult.msg}
+                    </span>
+                  )}
+                </div>
+              </form>
+            </div>
             <div>
               <h2 className="text-xs tracking-[0.2em] uppercase text-[#6B6560] mb-6">Promjena lozinke</h2>
               <form onSubmit={changePassword} className="bg-white border border-[#E2DDD6] p-5 space-y-4">

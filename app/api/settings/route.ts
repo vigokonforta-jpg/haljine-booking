@@ -2,12 +2,17 @@ import { getSiteSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/settings - public, returns current site instructions
+// GET /api/settings - public, returns current site settings
 export async function GET() {
   try {
-    const settings = await getSiteSettings();
+    const s = await getSiteSettings();
     return Response.json(
-      { instructions: settings.instructions },
+      {
+        instructions: s.instructions,
+        contactEmail: s.contactEmail,
+        contactAddress: s.contactAddress,
+        contactPhone: s.contactPhone,
+      },
       { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
     );
   } catch {

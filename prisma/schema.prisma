@@ -37,8 +37,11 @@ model BookingLimit {
 }
 
 model SiteSettings {
-  id            Int      @id @default(1)
-  instructions  String   @default("")
-  adminPassword String?  // SHA-256 hashed; null = use ADMIN_PASSWORD env var
-  updatedAt     DateTime @updatedAt
+  id             Int      @id @default(1)
+  instructions   String   @default("")
+  adminPassword  String?  // SHA-256 hashed; null = use ADMIN_PASSWORD env var
+  contactEmail   String   @default("info@noemabooking.com")
+  contactAddress String   @default("Nova Ves 50, Zagreb")
+  contactPhone   String   @default("")
+  updatedAt      DateTime @updatedAt
 }
