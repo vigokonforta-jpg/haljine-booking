@@ -901,7 +901,7 @@ export default function BookingPage() {
         </div>
       </section>
 
-      <Footer />
+      <Footer contact={contact} />
     </div>
   );
 }
